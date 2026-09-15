@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flowtrace</title>
+    <link rel="icon" type="image/png" href="/static/clock-in.png">
+    <link rel="stylesheet" href="/static/style.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+    <script defer src="/static/app.js"></script>
+</head>
+<body>
+<div class="container">
+    <header class="header">
+        <div class="brand">
+            <h1>Flowtrace</h1>
+            <p>时间有迹可循</p>
+        </div>
+        <div class="nav">
+            <div class="view-toggle" role="tablist" aria-label="视图切换">
+                <button id="btn-daily" class="active" onclick="switchView('daily')">日视图</button>
+                <button id="btn-weekly" onclick="switchView('weekly')">周视图</button>
+                <button id="btn-stats" onclick="switchView('stats')">统计</button>
+            </div>
+            <div class="date-nav">
+                <button aria-label="上一页" onclick="navigate(-1)">&larr;</button>
+                <span class="date-label" id="date-label"></span>
+                <button aria-label="下一页" onclick="navigate(1)">&rarr;</button>
+                <button id="btn-today" aria-label="回到今天" onclick="goToToday()">Today</button>
+            </div>
+        </div>
+    </header>
+
+    <main id="daily-view">
+        <section class="card">
+            <h2>今日状态</h2>
+            <div id="daily-chart"></div>
+        </section>
+        <section class="stats-row" id="daily-stats"></section>
+
+        <div class="weekly-export-bar">
+            <button id="btn-daily-export" type="button" onclick="exportDailySummaryImage()">
+                <span>保存今日分享图</span>
+            </button>
+        </div>
+
+        <section class="card">
+            <h2>全量数据表</h2>
+            <div class="table-wrap">
+                <table id="all-data-table">
+                    <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>总在岗</th>
+                        <th>在岗专注</th>
+                        <th>评分</th>
+                        <th>段数</th>
+                    </tr>
+                    </thead>
+                    <tbody id="all-data-body"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <main id="weekly-view" style="display:none">
+        <section class="stats-row" id="weekly-stats"></section>
+        <section class="card">
+            <div class="card-title-row">
+                <h2>周视图 · 时间轴</h2>
+                <div class="timeline-legend">
+                    <span><i class="dot dot-offduty-active"></i>活跃</span>
+                    <span><i class="dot dot-on-duty"></i>在岗</span>
+                    <span><i class="dot dot-slack"></i>摸鱼</span>
+                </div>
+            </div>
+            <div class="timeline-axis">
+                <span class="timeline-axis-spacer" aria-hidden="true"></span>
+                <div class="timeline-axis-track" aria-hidden="true">
+                    <span>00</span><span>06</span><span>12</span><span>18</span><span>24</span>
+                </div>
+            </div>
+            <div id="week-rows" class="week-rows"></div>
+            <div class="timeline-weekday-note" aria-label="周几颜色说明">
+                <span><i class="weekday-chip weekday-too-low"></i>工作日·偏低</span>
+                <span><i class="weekday-chip weekday-low"></i>工作日·一般</span>
+                <span><i class="weekday-chip weekday-good"></i>工作日·理想</span>
+                <span><i class="weekday-chip weekday-over"></i>工作日·过载</span>
+                <span><i class="weekday-chip weekday-weekend-rest"></i>周末·休息</span>
+                <span><i class="weekday-chip weekday-weekend-work"></i>周末·活跃</span>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="weekly-compare-header">
+                <div>
+                    <h2>本周节奏</h2>
+                    <p>左侧看本周累计进度是否跑赢最近 4 周基线，右侧看和上周同 weekday 的变化。</p>
+                </div>
+                <div class="metric-switch" id="weekly-compare-metric-tabs"></div>
+            </div>
+            <div class="weekly-compare-layout">
+                <div class="compare-panel">
+                    <h3>累计进度 vs 历史基线</h3>
+                    <div id="weekly-progress-chart" class="compare-chart"></div>
+                </div>
+                <div class="compare-panel">
+                    <h3>每日环比 · 哑铃图</h3>
+                    <div id="weekly-wow-chart" class="compare-chart"></div>
+                </div>
+            </div>
+        </section>
+
+        <div class="weekly-export-bar">
+            <button id="btn-weekly-export" type="button" onclick="exportWeeklySummaryImage()">
+                <span>保存本周总结为图片</span>
+            </button>
+        </div>
+    </main>
+
+    <main id="stats-view" style="display:none">
+        <section class="card">
+            <h2>趣味统计 <span class="period-tag" id="fun-stats-period"></span></h2>
+            <div class="fun-stats-grid" id="fun-stats-container"></div>
+        </section>
+
+        <section class="card">
+            <h2>30天趋势</h2>
+            <div id="trend-chart"></div>
+            <div class="trend-focus-legend" aria-label="专注率颜色说明">
+                <span><i class="focus-chip focus-low"></i>低专注 0–49%</span>
+                <span><i class="focus-chip focus-mid"></i>中专注 50–79%</span>
+                <span><i class="focus-chip focus-high"></i>高专注 80–100%</span>
+            </div>
+        </section>
+
+        <section class="stats-dual-layout">
+            <article class="card">
+                <div class="card-title-row">
+                    <div>
+                        <h2>上下班画像 <span class="period-tag" id="efficiency-period"></span></h2>
+                        <p class="panel-desc">每个 weekday 显示上班 / 下班时间分布：浅色范围为 10%-90%，深色范围为 Q1-Q3，中间标记为中位时间。</p>
+                    </div>
+                    <div class="chart-inline-legend" aria-label="上下班画像图例">
+                        <span><i class="dot dot-on-duty"></i>上班</span>
+                        <span><i class="dot dot-offduty-active"></i>下班</span>
+                    </div>
+                </div>
+                <div id="stability-chart"></div>
+                <p class="panel-desc accuracy-note">* 基于 12 周窗口内已有打卡记录；跨零点下班会折算到前一日。</p>
+            </article>
+
+            <article class="card">
+                <div class="card-title-row">
+                    <div>
+                        <h2>周目标达成 <span class="period-tag" id="weekly-ledger-period"></span></h2>
+                        <p class="panel-desc">最近 8 个有数据完整周：柱为周时长、按当周专注率分档染色，折线为平均自评分。</p>
+                    </div>
+                    <div class="metric-switch" id="weekly-goal-metric-tabs"></div>
+                </div>
+                <div class="goal-kpi-row" id="weekly-goal-kpis"></div>
+                <div id="weekly-goal-chart"></div>
+                <div class="trend-focus-legend" aria-label="专注率颜色说明">
+                    <span><i class="focus-chip focus-low"></i>低专注 0–49%</span>
+                    <span><i class="focus-chip focus-mid"></i>中专注 50–79%</span>
+                    <span><i class="focus-chip focus-high"></i>高专注 80–100%</span>
+                </div>
+            </article>
+        </section>
+
+        <section class="card">
+            <div class="card-title-row">
+                <div>
+                    <h2>有效工作日历</h2>
+                    <p class="panel-desc">每个格子代表一天，颜色越深表示有效工作时间越长。</p>
+                </div>
+                <span class="heat-scale" aria-label="有效工作日历颜色刻度">
+                    低 <i class="heat-empty"></i><i class="heat-l1"></i><i class="heat-l2"></i><i class="heat-l3"></i><i class="heat-l4"></i> 高
+                </span>
+            </div>
+            <div class="work-calendar desktop-calendar" id="work-calendar-desktop"></div>
+            <div class="work-calendar mobile-calendar" id="work-calendar-mobile"></div>
+            <div class="calendar-legend" aria-label="有效工作日历图例">
+                <span><i class="heat-empty"></i>暂无数据</span>
+                <span><i class="heat-zero"></i>有活动但有效工作为 0</span>
+                <span><i class="heat-l3"></i>有效工作越高颜色越深</span>
+            </div>
+        </section>
+    </main>
+</div>
+</body>
+</html>

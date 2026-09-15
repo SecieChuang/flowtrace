@@ -1,0 +1,61 @@
+{
+  "server_base_url": "",
+  "api_key": "",
+  "idle_threshold_seconds": 300,
+  "start_threshold_seconds": 60,
+  "monitor_interval_seconds": 10,
+  "sync_interval_seconds": 60,
+  "rating_trigger_minutes": 90,
+  "rating_timeout_seconds": 10,
+  "toast_duration_ms": 2000,
+  "toast_offset_right": 36,
+  "toast_offset_bottom": 100,
+  "screenshot_enabled": true,
+  "screenshot_capture_webcam": false,
+  "screenshot_interval_minutes": 5,
+  "screenshot_quality": 60,
+  "screenshot_max_dimension": 1280,
+  "screenshot_retention_days": 7,
+  "screenshot_summary_max_images": 20,
+  "screenshot_summary_batch_size": 6,
+  "screenshot_summary_schedule_enabled": true,
+  "screenshot_summary_schedule_days": "MON,TUE,WED,THU,FRI,SAT,SUN",
+  "screenshot_summary_schedule_time": "23:30",
+  "screenshot_summary_webhook_enabled": false,
+  "screenshot_summary_webhook_url": "",
+  "screenshot_summary_webhook_secret": "",
+  "ai_primary_provider": "dashscope",
+  "ai_fallback_providers": [],
+  "ai_timeout_seconds": 120,
+  "providers": {
+    "dashscope": {
+      "api_key": "",
+      "vision_model": "qwen-vl-max",
+      "text_model": "qwen-plus"
+    },
+    "zhipu": {
+      "api_key": "",
+      "vision_model": "glm-4v",
+      "text_model": "glm-4"
+    },
+    "minimax": {
+      "api_key": "",
+      "vision_model": "",
+      "text_model": "abab6.5s-chat"
+    },
+    "mistralai": {
+      "api_key": "",
+      "vision_model": "",
+      "text_model": "mistral-small-latest"
+    }
+  },
+  "webhook_enabled": false,
+  "webhook_url": "",
+  "webhook_secret": "",
+  "webhook_timeout_seconds": 15,
+  "webhook_retry_count": 2,
+  "webhook_retry_delay_seconds": 2,
+  "notification_log_retention_days": 14,
+  "job_lock_stale_seconds": 43200,
+  "automation_python_executable": ""
+}

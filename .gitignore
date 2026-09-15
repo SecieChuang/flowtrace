@@ -1,0 +1,135 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Python
+# ══════════════════════════════════════════════════════════════════════════════
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+MANIFEST
+
+# Build / Distribution
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+.installed.cfg
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Virtual Environments
+# ══════════════════════════════════════════════════════════════════════════════
+venv/
+ENV/
+env/
+.venv/
+
+# ══════════════════════════════════════════════════════════════════════════════
+# IDE / Development Tools
+# ══════════════════════════════════════════════════════════════════════════════
+.claude/
+.codex/
+.gemini/
+.vscode/
+.idea/
+.pytest_cache/
+*.swp
+*.swo
+*~
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Operating System
+# ══════════════════════════════════════════════════════════════════════════════
+.DS_Store
+Thumbs.db
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Logs / Temporary Files
+# ══════════════════════════════════════════════════════════════════════════════
+*.log
+*.tmp
+*.bak
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Environment Variables
+# ══════════════════════════════════════════════════════════════════════════════
+.env
+.env.local
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Configuration (Sensitive: API keys, webhook secrets, server URLs)
+# ══════════════════════════════════════════════════════════════════════════════
+server/config.json
+client/config/config.json
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Runtime / Generated Data
+# ══════════════════════════════════════════════════════════════════════════════
+# Queue files
+offline_queue.jsonl
+sync_queue.jsonl
+listener_state.json
+
+# Client runtime
+client/backup/
+client/runtime/
+client/screenshots/
+
+# Server data
+server/data/
+
+# Generic data directories
+data/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Development / Testing (Local Only)
+server/scripts/
+
+# ══════════════════════════════════════════════════════════════════════════════
+server/static/preview.html
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Documentation / Reference (Local Only)
+# ══════════════════════════════════════════════════════════════════════════════
+ref/
+Requirements.md
+TECHNICAL.md
+REVIEW_TODO.md
+
+# Project status / planning docs (Local Only)
+DEPLOY.md
+REDEPLOY.md
+STATUS.md
+client/AGENTS.md
+client/SLIMMING_PLAN.md
+
+# Design / planning notes under docs/superpowers (Local Only)
+docs/superpowers/
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Miscellaneous
+# ══════════════════════════════════════════════════════════════════════════════
+palette-preview.html
+backup/
+
+# Preview directory (design drafts, not production)
+preview/
+
+# Local deploy tooling (personal scripts, not part of the repo)
+client/deploy/

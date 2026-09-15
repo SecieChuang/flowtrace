@@ -1,0 +1,21 @@
+{
+  "host": "0.0.0.0",
+  "port": 8000,
+  "database": "../data/flowtrace.db",
+  "api_key": "CHANGE_ME",
+  "checkin_dedupe_seconds": 60,
+  "auto_merge_gap_minutes": 2,
+  "auto_min_fragment_minutes": 2,
+  "open_manual_clip_days": 7,
+  "manage_default_days": 30,
+  "inference": {
+    "enable_no_manual_day": false,
+    "merge_gap_minutes": 40,
+    "daypart_thresholds": {
+      "morning": 40,
+      "afternoon": 40,
+      "evening": 40,
+      "night": 40
+    }
+  }
+}
