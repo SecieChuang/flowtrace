@@ -78,16 +78,20 @@ dashboard you can check from any device. No cloud account, no third-party analyt
 
 ## 架构
 
-```mermaid
-flowchart LR
-    subgraph CLIENT["🖥 采集端 · 你的 Windows 电脑"]
-        A["client/scripts/flowtrace.ahk<br/>· 键鼠活跃 / 空闲状态机<br/>· 上下班热键打卡（^+i / ^+o）<br/>· 自评分弹窗 / 离线队列<br/>· 可选截图 + AI 日报 + webhook"]
-    end
-    subgraph SERVER["🗄 服务端 · 你的服务器 / 本地均可"]
-        B["server/（Docker 或 python server.py）<br/>· Flask API + SQLite（仓库根 data/）<br/>· 打卡去重 · 跨零点班次推断<br/>· 检测引擎（manage_cli 交互修复）<br/>· 仪表盘（日 / 周 / 统计 三视图）"]
-    end
-    CLIENT -- "HTTP（api_key 鉴权）" --> SERVER
-    SERVER -- "浏览器访问" --> DEVICES["💻 电脑　📱 手机　⏱ 平板<br/>一次部署，多端监看"]
+```
+  Collector (your Windows PC)                            Server (cloud host or local)
+┌─────────────────────────────────────────┐            ┌───────────────────────────────────────────┐
+│ client/scripts/flowtrace.ahk            │   HTTP     │ server/  (Docker or python server.py)     │
+│ - keyboard/mouse activity fsm           │ ─────────► │ - Flask API + SQLite (<repo>/data/)       │
+│ - clock-in hotkeys  ^+i / ^+o           │ X-API-Key  │ - checkin dedupe + overnight inference    │
+│ - rating popup / offline queue          │ ◄───────── │ - detection engine (manage_cli repairs)   │
+│ - optional screenshots + AI + webhook   │            │ - dashboard: daily / weekly / stats       │
+└─────────────────────────────────────────┘            └───────────────────────────────────────────┘
+                                                                       │ browser access
+                                                                       ┌────────────┼────────────┐
+                                                                       ▼            ▼            ▼
+                                                                       desktop      phone      tablet
+                                                                       (deploy once, watch anywhere)
 ```
 
 客户端上报活动片段 / 打卡 / 评分 / 截图，并从服务端拉取配置与状态。更深入的架构说明见 [docs/architecture.md](docs/architecture.md)。
