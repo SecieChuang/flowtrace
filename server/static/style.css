@@ -345,9 +345,15 @@ button:focus-visible {
 .goal-kpi strong {
     display: block;
     margin-top: 3px;
-    font-size: 1rem;
+    font-size: 0.95rem;
     line-height: 1.2;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.goal-metric-tabs {
+    margin: 8px 0 2px;
+    flex-wrap: nowrap;
 }
 
 .goal-kpi strong.goal-good {
