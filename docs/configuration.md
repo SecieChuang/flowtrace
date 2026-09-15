@@ -110,17 +110,18 @@
 
 ### AI provider
 
+AI 调用全部走 **OpenAI 兼容 HTTP 协议**，不需要任何厂商 SDK。provider 名称完全自定义（`providers` 里的键名），每家自配 `base_url`；`wire_api` 支持 `"chat"`（`/chat/completions`，绝大多数厂商）和 `"responses"`（`/responses`，OpenAI 新协议）。
+
 | 字段 | 类型 | 模板示例值 | 代码兜底值 | 含义 / 注意事项 |
 |---|---|---|---|---|
-| `ai_primary_provider` | string | `"dashscope"` | `""` | 主 AI provider，取值 `dashscope` / `zhipu` / `minimax` / `mistralai` |
-| `ai_fallback_providers` | array | `[]` | `[]` | 备用 provider 列表，主 provider 失败时按序回退。兼容旧的单数字段 `ai_fallback_provider` |
+| `ai_primary_provider` | string | `"dashscope"` | `""` | 主 provider 名，对应 `providers` 里的某个键 |
+| `ai_fallback_providers` | array | `[]` | `[]` | 备用 provider 名列表，主 provider 失败时按序回退。兼容旧的单数字段 `ai_fallback_provider` |
 | `ai_timeout_seconds` | int | `120` | `120` | 单次 AI 调用超时（秒），超时即视为失败并尝试下一个 provider |
-| `providers.dashscope.api_key` | string | `""` | `""` | 阿里云 DashScope 密钥。**不填则 AI 日报完全不启用，无任何外发** |
-| `providers.dashscope.vision_model` | string | `"qwen-vl-max"` | `""` | 视觉模型（批量读图阶段） |
-| `providers.dashscope.text_model` | string | `"qwen-plus"` | `""` | 文本模型（汇总阶段） |
-| `providers.zhipu.*` | — | `glm-4v` / `glm-4` | `""` | 智谱，需 `pip install zhipuai` |
-| `providers.minimax.*` | — | 文本 `abab6.5s-chat` | `""` | MiniMax，走 OpenAI 兼容接口，需 `pip install openai`；当前无视觉模型配置 |
-| `providers.mistralai.*` | — | `mistral-small-latest` | `""` | Mistral，需 `pip install mistralai` |
+| `providers.<名字>.base_url` | string | — | `""` | **必填**。OpenAI 兼容端点，如 DashScope 用 `https://dashscope.aliyuncs.com/compatible-mode/v1`，智谱用 `https://open.bigmodel.cn/api/paas/v4`，MiniMax 用 `https://api.minimax.chat/v1` |
+| `providers.<名字>.api_key` | string | `""` | `""` | 该 provider 的密钥。**全部不填则 AI 日报完全不启用，无任何外发** |
+| `providers.<名字>.wire_api` | string | `"chat"` | `"chat"` | 协议：`"chat"` = `/chat/completions`；`"responses"` = `/responses`（厂商支持才用） |
+| `providers.<名字>.vision_model` | string | 视厂商 | `""` | 视觉模型（批量读图阶段）；**不配则该 provider 不能承担截图日报的读图环节** |
+| `providers.<名字>.text_model` | string | 视厂商 | `""` | 文本模型（汇总阶段） |
 
 ### 通用 webhook（飞书等）
 

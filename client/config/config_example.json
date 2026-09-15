@@ -30,23 +30,31 @@
   "providers": {
     "dashscope": {
       "api_key": "",
+      "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "wire_api": "chat",
       "vision_model": "qwen-vl-max",
       "text_model": "qwen-plus"
     },
     "zhipu": {
       "api_key": "",
+      "base_url": "https://open.bigmodel.cn/api/paas/v4",
+      "wire_api": "chat",
       "vision_model": "glm-4v",
       "text_model": "glm-4"
     },
     "minimax": {
       "api_key": "",
+      "base_url": "https://api.minimax.chat/v1",
+      "wire_api": "chat",
       "vision_model": "",
       "text_model": "abab6.5s-chat"
     },
-    "mistralai": {
+    "custom": {
       "api_key": "",
+      "base_url": "",
+      "wire_api": "chat",
       "vision_model": "",
-      "text_model": "mistral-small-latest"
+      "text_model": ""
     }
   },
   "webhook_enabled": false,

@@ -55,7 +55,7 @@ dashboard you can check from any device. No cloud account, no third-party analyt
 | 🎯 **统计面板** | 30 天趋势（柱色按专注率分档）、上下班时间画像、周目标达成（时长 × 专注率 × 心情合成图）、有效工作日历热力、趣味统计 |
 | ⭐ **自评分** | 活跃累计一定时长弹出 1–5 分即时评分，与产出交叉分析 |
 | 🧾 **每日分享小票** | 一键把今天保存成「工时小票」图片（见下方示例） |
-| 🤖 **AI 截图日报**（可选） | 定时截屏 + 多 provider（DashScope / 智谱 / MiniMax / Mistral）生成每日时间线总结，webhook 推送飞书 |
+| 🤖 **AI 截图日报**（可选） | 定时截屏 + 任意 OpenAI 兼容 AI 服务（自定义 provider 名、base_url，支持 chat / responses 两种协议）生成每日时间线总结，webhook 推送飞书 |
 | 📦 **离线队列** | 服务端不可达时事件暂存本地，恢复后自动补传 |
 | 🐳 **Docker 部署** | 服务端自带 Dockerfile 与 docker-compose.yml |
 

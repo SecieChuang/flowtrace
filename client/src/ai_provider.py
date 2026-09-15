@@ -1,15 +1,37 @@
-"""Unified AI provider module with multi-provider support and fallback.
+"""Unified AI provider: any OpenAI-compatible endpoint.
 
-Supports: dashscope, zhipu (智谱), minimax, mistralai
+All providers are plain HTTP calls to an OpenAI-compatible API — no vendor SDKs.
+Provider names are user-defined; each provider entry carries its own base_url,
+models and wire protocol ("chat" = /chat/completions, "responses" = /responses).
+
+Config shape (client/config/config.json):
+
+    "ai_primary_provider": "my-provider",
+    "ai_fallback_providers": ["backup-provider"],
+    "providers": {
+        "my-provider": {
+            "base_url": "https://api.example.com/v1",
+            "api_key": "...",
+            "wire_api": "chat",
+            "text_model": "some-text-model",
+            "vision_model": "some-vision-model"
+        }
+    }
 """
+import base64
+import io
 import json
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
+
+import requests
 
 from webhook_utils import safe_print
 
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "config.json"
+
+WIRE_CHAT = "chat"
+WIRE_RESPONSES = "responses"
 
 
 def load_config(path: Path) -> Dict:
@@ -19,220 +41,177 @@ def load_config(path: Path) -> Dict:
 
 
 def get_provider_config(cfg: Dict, provider: str) -> Optional[Dict]:
-    """Get provider configuration from config."""
+    """Get provider configuration by name (case-insensitive)."""
     providers = cfg.get("providers", {})
-    return providers.get(provider.lower())
+    if not isinstance(providers, dict):
+        return None
+    name = str(provider).strip().lower()
+    for key, value in providers.items():
+        if key.strip().lower() == name and isinstance(value, dict):
+            return value
+    return None
+
+
+def _provider_field(cfg: Dict, provider: str, field: str) -> str:
+    entry = get_provider_config(cfg, provider)
+    if entry:
+        return str(entry.get(field, "")).strip()
+    return ""
 
 
 def get_provider_api_key(cfg: Dict, provider: str) -> str:
     """Get API key for a provider."""
-    prov = get_provider_config(cfg, provider)
-    if prov:
-        return str(prov.get("api_key", "")).strip()
-    return ""
+    return _provider_field(cfg, provider, "api_key")
+
+
+def get_provider_base_url(cfg: Dict, provider: str) -> str:
+    """Get base URL for a provider."""
+    return _provider_field(cfg, provider, "base_url")
+
+
+def get_provider_wire_api(cfg: Dict, provider: str) -> str:
+    """Get wire protocol: "chat" (default) or "responses"."""
+    return _provider_field(cfg, provider, "wire_api") or WIRE_CHAT
 
 
 def get_provider_vision_model(cfg: Dict, provider: str) -> str:
     """Get vision model for a specific provider."""
-    prov = get_provider_config(cfg, provider)
-    if prov:
-        return str(prov.get("vision_model", "")).strip()
-    return ""
+    return _provider_field(cfg, provider, "vision_model")
 
 
 def get_provider_text_model(cfg: Dict, provider: str) -> str:
     """Get text model for a specific provider."""
-    prov = get_provider_config(cfg, provider)
-    if prov:
-        return str(prov.get("text_model", "")).strip()
-    return ""
+    return _provider_field(cfg, provider, "text_model")
 
 
 def get_primary_provider(cfg: Dict) -> str:
-    """Get primary AI provider from config."""
-    return str(cfg.get("ai_primary_provider", "")).strip().lower()
+    """Get primary AI provider name from config."""
+    return str(cfg.get("ai_primary_provider", "")).strip()
 
 
 def get_fallback_providers(cfg: Dict) -> List[str]:
-    """Get fallback AI providers from config (supports multiple)."""
+    """Get fallback AI provider names from config (supports multiple)."""
     fallback = cfg.get("ai_fallback_providers")
     if isinstance(fallback, list):
-        return [str(p).strip().lower() for p in fallback if p]
+        return [str(p).strip() for p in fallback if p]
     if fallback is not None:
-        single = str(fallback).strip().lower()
+        single = str(fallback).strip()
         return [single] if single else []
     # Support old single provider format for backward compatibility
-    single = str(cfg.get("ai_fallback_provider", "")).strip().lower()
+    single = str(cfg.get("ai_fallback_provider", "")).strip()
     return [single] if single else []
 
 
 # =============================================================================
-# Provider implementations
+# Wire protocol payloads (OpenAI-compatible)
 # =============================================================================
 
-def _call_dashscope(api_key: str, model: str, messages: Sequence[Dict], is_vision: bool = False):
-    """Call DashScope API."""
-    import dashscope
-
-    dashscope.base_http_api_url = "https://dashscope.aliyuncs.com/api/v1"
-
-    if is_vision:
-        return dashscope.MultiModalConversation.call(
-            api_key=api_key,
-            model=model,
-            messages=list(messages),
-        )
-    else:
-        # Convert messages format for text models
-        formatted_messages = [
-            {"role": item["role"], "content": [{"text": item["content"]}]}
-            for item in messages
-        ]
-        return dashscope.Generation.call(
-            api_key=api_key,
-            model=model,
-            messages=formatted_messages,
-            result_format="message",
-        )
+def _normalize_parts(content) -> List[Dict]:
+    """Internal content list ([{"image": data_url}, {"text": ...}]) → uniform parts."""
+    parts = []
+    for item in content:
+        if isinstance(item, dict):
+            if "image" in item:
+                parts.append({"image": item["image"]})
+            elif "text" in item:
+                parts.append({"text": item["text"]})
+    return parts
 
 
-def _call_zhipu(api_key: str, model: str, messages: Sequence[Dict], is_vision: bool = False):
-    """Call Zhipu (智谱) API."""
-    from zhipuai import ZhipuAI
-
-    client = ZhipuAI(api_key=api_key)
-
-    # Convert to zhipu format
-    formatted_messages = [
-        {"role": item["role"], "content": item["content"]}
-        for item in messages
-    ]
-
-    if is_vision:
-        # Vision models need special handling
-        # Convert to zhipu's multimodal format
-        content = []
-        for msg in messages:
-            if isinstance(msg.get("content"), list):
-                for item in msg["content"]:
-                    if isinstance(item, dict):
-                        if "image" in item:
-                            # Handle base64 image
-                            content.append({"type": "image_url", "image_url": {"url": item["image"]}})
-                        elif "text" in item:
-                            content.append({"type": "text", "text": item["text"]})
-            elif isinstance(msg.get("content"), str):
-                content.append({"type": "text", "text": msg["content"]})
-
-        formatted_messages = [{"role": msg["role"], "content": content}]
-
-    return client.chat.completions.create(
-        model=model,
-        messages=formatted_messages,
-    )
+def build_chat_payload(model: str, messages: Sequence[Dict]) -> Dict:
+    """Build /chat/completions request body."""
+    out = []
+    for msg in messages:
+        content = msg.get("content")
+        if isinstance(content, str):
+            out.append({"role": msg.get("role", "user"), "content": content})
+            continue
+        parts = []
+        for part in _normalize_parts(content):
+            if "image" in part:
+                parts.append({"type": "image_url", "image_url": {"url": part["image"]}})
+            else:
+                parts.append({"type": "text", "text": part["text"]})
+        out.append({"role": msg.get("role", "user"), "content": parts})
+    return {"model": model, "messages": out}
 
 
-def _call_minimax(api_key: str, model: str, messages: Sequence[Dict], is_vision: bool = False):
-    """Call MiniMax API."""
-    import openai
-
-    client = openai.OpenAI(
-        api_key=api_key,
-        base_url="https://api.minimax.chat/v1",
-    )
-
-    # Convert messages format for minimax
-    formatted_messages = [
-        {"role": item["role"], "content": item["content"]}
-        for item in messages
-    ]
-
-    return client.chat.completions.create(
-        model=model,
-        messages=formatted_messages,
-    )
-
-
-def _call_mistralai(api_key: str, model: str, messages: Sequence[Dict], is_vision: bool = False):
-    """Call Mistral AI API."""
-    from mistralai.client import Mistral
-
-    client = Mistral(api_key=api_key)
-
-    if is_vision:
-        # For vision models, pass image directly in image_url
-        content_parts = []
-        for msg in messages:
-            if isinstance(msg.get("content"), list):
-                for item in msg["content"]:
-                    if isinstance(item, dict):
-                        if "image" in item:
-                            # Handle base64 image - pass directly as data URL
-                            image_b64 = item["image"]
-                            if image_b64.startswith("data:image"):
-                                # Extract base64 part
-                                image_b64 = image_b64.split(",", 1)[1]
-                            # Use data URL format for direct base64
-                            content_parts.append({
-                                "type": "image_url",
-                                "image_url": f"data:image/jpeg;base64,{image_b64}"
-                            })
-                        elif "text" in item:
-                            content_parts.append({"type": "text", "text": item["text"]})
-            elif isinstance(msg.get("content"), str):
-                content_parts.append({"type": "text", "text": msg["content"]})
-
-        formatted_messages = [{"role": msg.get("role", "user"), "content": content_parts}]
-    else:
-        # Convert messages format for text models
-        formatted_messages = [
-            {"role": item["role"], "content": item["content"]}
-            for item in messages
-        ]
-
-    return client.chat.complete(
-        model=model,
-        messages=formatted_messages,
-        stream=False,
-    )
-
-
-PROVIDER_CALLS = {
-    "dashscope": _call_dashscope,
-    "zhipu": _call_zhipu,
-    "minimax": _call_minimax,
-    "mistralai": _call_mistralai,
-}
-
-
-def parse_response(response, is_vision: bool = False) -> str:
-    """Parse API response to extract text content."""
-    # DashScope format
-    if hasattr(response, "output"):
-        content = response.output.choices[0].message.content
-        if is_vision:
-            if isinstance(content, list):
-                return "\n".join(
-                    str(item.get("text", item)) for item in content if item
-                ).strip()
+def build_responses_payload(model: str, messages: Sequence[Dict]) -> Dict:
+    """Build /responses request body."""
+    items = []
+    for msg in messages:
+        content = msg.get("content")
+        if isinstance(content, str):
+            parts = [{"type": "input_text", "text": content}]
         else:
-            if isinstance(content, list):
-                parts = []
-                for item in content:
-                    if isinstance(item, dict) and item.get("text"):
-                        parts.append(str(item["text"]))
-                    else:
-                        parts.append(str(item))
-                return "\n".join(parts).strip()
-            return str(content).strip()
+            parts = []
+            for part in _normalize_parts(content):
+                if "image" in part:
+                    parts.append({"type": "input_image", "image_url": part["image"]})
+                else:
+                    parts.append({"type": "input_text", "text": part["text"]})
+        items.append({"role": msg.get("role", "user"), "content": parts})
+    return {"model": model, "input": items}
 
-    # Zhipu/MiniMax format (OpenAI-compatible)
-    if hasattr(response, "choices"):
-        content = response.choices[0].message.content
-        return str(content).strip()
 
-    # Fallback
-    return str(response)
+def extract_text(data: Dict, wire_api: str) -> str:
+    """Extract plain text from a parsed response body."""
+    if wire_api == WIRE_RESPONSES:
+        output_text = data.get("output_text")
+        if isinstance(output_text, str) and output_text.strip():
+            return output_text.strip()
+        for item in data.get("output") or []:
+            for part in item.get("content") or []:
+                if isinstance(part, dict) and part.get("text"):
+                    return str(part["text"]).strip()
+        raise RuntimeError("responses API returned no text")
+
+    choices = data.get("choices") or []
+    if not choices:
+        raise RuntimeError(f"chat API returned no choices: {str(data)[:200]}")
+    content = (choices[0].get("message") or {}).get("content")
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, dict) and item.get("text"):
+                parts.append(str(item["text"]))
+            elif isinstance(item, str):
+                parts.append(item)
+        return "\n".join(parts).strip()
+    if content is None:
+        raise RuntimeError("chat API returned empty message content")
+    return str(content).strip()
+
+
+# =============================================================================
+# HTTP call
+# =============================================================================
+
+def call_provider(entry: Dict, model: str, messages: Sequence[Dict], timeout_seconds: int) -> str:
+    """Call one provider entry and return the response text."""
+    base_url = str(entry.get("base_url", "")).strip().rstrip("/")
+    if not base_url:
+        raise RuntimeError("missing base_url in provider config")
+    api_key = str(entry.get("api_key", "")).strip()
+    wire_api = str(entry.get("wire_api", "")).strip() or WIRE_CHAT
+
+    if wire_api == WIRE_RESPONSES:
+        payload = build_responses_payload(model, messages)
+        url = f"{base_url}/responses"
+    elif wire_api == WIRE_CHAT:
+        payload = build_chat_payload(model, messages)
+        url = f"{base_url}/chat/completions"
+    else:
+        raise RuntimeError(f"unsupported wire_api: {wire_api} (expected chat/responses)")
+
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    resp = requests.post(url, json=payload, headers=headers, timeout=timeout_seconds)
+    if resp.status_code != 200:
+        raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:200]}")
+    return extract_text(resp.json(), wire_api)
 
 
 # =============================================================================
@@ -249,7 +228,7 @@ def call_ai(
 
     Args:
         cfg: Configuration dictionary
-        messages: Messages to send
+        messages: Messages to send (text string content, or parts list with text/image)
         timeout_seconds: Request timeout
         is_vision: Whether this is a vision model call
 
@@ -259,7 +238,6 @@ def call_ai(
     Raises:
         RuntimeError: If all providers fail
     """
-    # Determine providers to try
     primary = get_primary_provider(cfg)
     fallbacks = get_fallback_providers(cfg)
 
@@ -268,65 +246,28 @@ def call_ai(
     errors = []
 
     for provider in providers_to_try:
-        api_key = get_provider_api_key(cfg, provider)
-        if not api_key:
+        entry = get_provider_config(cfg, provider)
+        if not entry:
+            errors.append(f"Provider {provider}: not configured in providers")
+            continue
+        if not get_provider_api_key(cfg, provider):
             errors.append(f"Provider {provider}: no API key")
             continue
 
-        call_func = PROVIDER_CALLS.get(provider)
-        if not call_func:
-            errors.append(f"Provider {provider}: not supported")
-            continue
-
-        # Get model from provider config based on is_vision
-        if is_vision:
-            actual_model = get_provider_vision_model(cfg, provider)
-        else:
-            actual_model = get_provider_text_model(cfg, provider)
-        if not actual_model:
+        model = get_provider_vision_model(cfg, provider) if is_vision else get_provider_text_model(cfg, provider)
+        if not model:
             errors.append(f"Provider {provider}: no {('vision' if is_vision else 'text')} model configured")
             continue
 
         try:
-            safe_print(f"AI_CALL|provider={provider}|model={actual_model}|is_vision={is_vision}")
-            result = _call_with_timeout(call_func, api_key, actual_model, messages, timeout_seconds, is_vision)
-            return result
+            safe_print(f"AI_CALL|provider={provider}|model={model}|is_vision={is_vision}")
+            return call_provider(entry, model, messages, timeout_seconds)
         except Exception as exc:
-            error_msg = f"Provider {provider} failed: {exc}"
             safe_print(f"AI_CALL_FAILED|provider={provider}|error={exc}")
-            errors.append(error_msg)
+            errors.append(f"Provider {provider} failed: {exc}")
             continue
 
     raise RuntimeError(f"All AI providers failed: {'; '.join(errors)}")
-
-
-def _call_with_timeout(
-    call_func,
-    api_key: str,
-    model: str,
-    messages: Sequence[Dict],
-    timeout_seconds: int,
-    is_vision: bool,
-) -> str:
-    """Execute API call with timeout."""
-    executor = ThreadPoolExecutor(max_workers=1)
-    future = executor.submit(call_func, api_key, model, messages, is_vision)
-    try:
-        response = future.result(timeout=timeout_seconds)
-    except FuturesTimeoutError as exc:
-        # Python 无法强杀线程，shutdown(wait=False) 让超时真正按时返回，残留线程自行结束
-        executor.shutdown(wait=False)
-        raise RuntimeError(f"Request timed out after {timeout_seconds}s") from exc
-    executor.shutdown(wait=True)
-
-    # Check for errors
-    status_code = getattr(response, "status_code", None)
-    if status_code and status_code != 200:
-        code = getattr(response, "code", "unknown")
-        message = getattr(response, "message", "unknown error")
-        raise RuntimeError(f"API error: status={status_code}, code={code}, message={message}")
-
-    return parse_response(response, is_vision)
 
 
 # =============================================================================
@@ -335,25 +276,20 @@ def _call_with_timeout(
 
 def test_provider(cfg: Dict, provider: str, model: str, timeout_seconds: int = 30, is_vision: bool = None) -> Tuple[bool, str]:
     """Test if a provider/model combination is available."""
-    api_key = get_provider_api_key(cfg, provider)
-    if not api_key:
+    entry = get_provider_config(cfg, provider)
+    if not entry:
+        return False, f"Provider {provider} not configured"
+    if not get_provider_api_key(cfg, provider):
         return False, "No API key"
+    if not get_provider_base_url(cfg, provider):
+        return False, "No base_url"
 
-    call_func = PROVIDER_CALLS.get(provider.lower())
-    if not call_func:
-        return False, f"Provider {provider} not supported"
-
-    # Determine if vision model - use provided value or auto-detect from config
     if is_vision is None:
         vision_model = get_provider_vision_model(cfg, provider)
         is_vision = bool(vision_model and model == vision_model)
 
-    # Build test messages
     if is_vision:
         # 现场生成一张小测试图（无需随仓库附带测试资产）
-        import base64
-        import io
-
         from PIL import Image
 
         buf = io.BytesIO()
@@ -364,7 +300,7 @@ def test_provider(cfg: Dict, provider: str, model: str, timeout_seconds: int = 3
         messages = [{"role": "user", "content": "Say 'OK' if you can read this."}]
 
     try:
-        result = _call_with_timeout(call_func, api_key, model, messages, timeout_seconds, is_vision)
+        result = call_provider(entry, model, messages, timeout_seconds)
         return True, f"OK - {result[:50]}"
     except Exception as e:
         return False, str(e)
@@ -384,7 +320,6 @@ def test_all_providers(cfg: Dict, timeout_seconds: int = 30) -> List[Dict[str, A
         if not provider:
             continue
 
-        # Test provider's vision model
         vision_model = get_provider_vision_model(cfg, provider)
         if vision_model:
             success, message = test_provider(cfg, provider, vision_model, timeout_seconds, is_vision=True)
@@ -392,12 +327,10 @@ def test_all_providers(cfg: Dict, timeout_seconds: int = 30) -> List[Dict[str, A
                 "provider": provider,
                 "model": vision_model,
                 "type": "vision",
-                "is_default": True,
                 "success": success,
                 "message": message,
             })
 
-        # Test provider's text model
         text_model = get_provider_text_model(cfg, provider)
         if text_model:
             success, message = test_provider(cfg, provider, text_model, timeout_seconds, is_vision=False)
@@ -405,7 +338,6 @@ def test_all_providers(cfg: Dict, timeout_seconds: int = 30) -> List[Dict[str, A
                 "provider": provider,
                 "model": text_model,
                 "type": "text",
-                "is_default": True,
                 "success": success,
                 "message": message,
             })

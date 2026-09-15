@@ -1,9 +1,6 @@
 requests>=2.28,<3
 Pillow>=10,<12
-dashscope>=1.20,<2
 
 # ── 可选依赖（按需自行安装，不装进默认环境）──────────────
 # opencv-python   摄像头快照（screenshot_capture_webcam=true 时需要）
-# zhipuai         AI fallback provider：智谱（providers.zhipu）
-# openai          AI fallback provider：OpenAI 兼容接口
-# mistralai       AI fallback provider：Mistral
+# 注：AI 调用全部走 OpenAI 兼容 HTTP（requests），不再需要任何厂商 SDK
