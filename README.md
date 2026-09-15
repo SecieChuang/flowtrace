@@ -8,7 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-239%20passed-brightgreen.svg)](tests/)
+[![Tests](https://github.com/SecieChuang/flowtrace/actions/workflows/tests.yml/badge.svg)](https://github.com/SecieChuang/flowtrace/actions/workflows/tests.yml)
 [![Client: Windows](https://img.shields.io/badge/client-Windows-0078D6.svg)](client/)
 [![Server: Docker](https://img.shields.io/badge/server-Docker-2496ED.svg)](server/)
 
@@ -59,14 +59,20 @@ dashboard you can check from any device. No cloud account, no third-party analyt
 | 📦 **离线队列** | 服务端不可达时事件暂存本地，恢复后自动补传 |
 | 🐳 **Docker 部署** | 服务端自带 Dockerfile 与 docker-compose.yml |
 
+### 工时小票 · 每日分享图
+
+仪表盘点「保存今日分享图」，把今天在岗 / 有效专注 / 摸鱼时段 / 打卡记录导出成一张小票风格的图片（模板随机生成）——适合存档、日报，或者发给朋友看看今天有多拼。
+
 <table>
   <tr>
-    <td width="320"><img src="docs/images/share_screenshot.png" alt="工时小票"></td>
-    <td valign="middle">
-      <h4>工时小票 · 每日分享图</h4>
-      <p>仪表盘点「保存今日分享图」，把今天在岗 / 有效专注 / 摸鱼时段 / 打卡记录
-      导出成一张小票风格的图片 —— 适合存档、日报，或者发给朋友看看今天有多拼。</p>
-    </td>
+    <td><img src="docs/images/share_screenshot1.png" alt="工时小票模板 1"></td>
+    <td><img src="docs/images/share_screenshot2.png" alt="工时小票模板 2"></td>
+    <td><img src="docs/images/share_screenshot3.png" alt="工时小票模板 3"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>模板 1</sub></td>
+    <td align="center"><sub>模板 2</sub></td>
+    <td align="center"><sub>模板 3</sub></td>
   </tr>
 </table>
 
