@@ -23,13 +23,17 @@ def _load_sync_fresh(monkeypatch, config):
 
     用于测试 SERVER/API_KEY 等模块级常量的解析逻辑（它们只在 import 时计算一次）。
     """
+    import io
     import os
 
     if config is None:
         monkeypatch.setattr(os.path, "exists", lambda p: False)
     else:
         monkeypatch.setattr(os.path, "exists", lambda p: True)
+        # json.load 已被替换，文件内容不重要；open 也必须 mock，
+        # 否则依赖开发机上恰好存在的真实 config.json（CI 上不存在）
         monkeypatch.setattr(json, "load", lambda f: config)
+        monkeypatch.setattr("builtins.open", lambda *a, **k: io.StringIO("{}"))
     spec = importlib.util.spec_from_file_location("sync_fresh", SYNC_FILE)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
