@@ -120,7 +120,7 @@ AI 调用全部走 **OpenAI 兼容 HTTP 协议**，不需要任何厂商 SDK。p
 | `providers.<名字>.base_url` | string | — | `""` | **必填**。OpenAI 兼容端点，如 DashScope 用 `https://dashscope.aliyuncs.com/compatible-mode/v1`，智谱用 `https://open.bigmodel.cn/api/paas/v4`，MiniMax 用 `https://api.minimax.chat/v1` |
 | `providers.<名字>.api_key` | string | `""` | `""` | 该 provider 的密钥。**全部不填则 AI 日报完全不启用，无任何外发** |
 | `providers.<名字>.wire_api` | string | `"chat"` | `"chat"` | 协议：`"chat"` = `/chat/completions`；`"responses"` = `/responses`（厂商支持才用） |
-| `providers.<名字>.vision_model` | string | 视厂商 | `""` | 视觉模型（批量读图阶段）；**不配则该 provider 不能承担截图日报的读图环节** |
+| `providers.<名字>.vision_model` | string | 视厂商 | `""` | 视觉模型（批量读图阶段）；**不配则该 provider 不能承担截图日报的读图环节**。图片以 base64 data URL 内嵌发送，本地图片无需公网可访问。**多模态模型（同一个模型同时承担图文）时，把 text_model 和 vision_model 填成同一个模型名即可** |
 | `providers.<名字>.text_model` | string | 视厂商 | `""` | 文本模型（汇总阶段） |
 
 ### 通用 webhook（飞书等）
