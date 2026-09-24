@@ -2467,6 +2467,8 @@ async function composeWeeklyMagazineBlob(weeklyData) {
 async function composeDailyMagazineBlob(dailyData) {
     const S = 2, W = 480 * S, H = 780 * S;
     const { canvas, ctx } = createExportCanvas(W, H);
+    const SERIF = "'Times New Roman',Georgia,'SimSun','FangSong',serif";
+    const serifFont = (weight, px) => `${weight} ${px}px ${SERIF}`;
     const bg = ctx.createLinearGradient(0, 0, W * 0.4, H);
     bg.addColorStop(0, "#ffb800");
     bg.addColorStop(0.5, "#ff6a00");
@@ -2489,58 +2491,76 @@ async function composeDailyMagazineBlob(dailyData) {
     const dayNum = String(dateStr).slice(8);
     const rangeText = `${weekday} · ${String(dateStr).slice(5).replace("-", ".")}`;
     ctx.fillStyle = "#ffffff";
-    ctx.font = exportFont(700, 12 * S);
-    ctx.fillText("FLOWTRACE", 52 * S, 64);
-    const bw = 11 * S * String(rangeText).length * 0.9 + 48 * S;
-    drawRoundedRect(ctx, W - 52 * S - bw, 56, bw, 36 * S, 18 * S);
+    ctx.font = exportFont(700, 16 * S);
+    ctx.fillText("FLOWTRACE", 52 * S, 36 * S);
+    const pillFont = 13 * S;
+    ctx.font = exportFont(700, pillFont);
+    const pillTw = ctx.measureText(rangeText).width;
+    const bw = pillTw + 48 * S;
+    const pillX = W - 52 * S - bw, pillY = 30 * S, pillH = 44 * S;
+    drawRoundedRect(ctx, pillX, pillY, bw, pillH, pillH / 2);
     ctx.strokeStyle = "rgba(255,255,255,0.55)";
     ctx.lineWidth = 1.5 * S;
     ctx.stroke();
     ctx.fillStyle = "#ffffff";
-    ctx.font = exportFont(700, 11 * S);
-    ctx.fillText(rangeText, W - 52 * S - bw + 24 * S, 64);
+    ctx.textAlign = "center";
+    ctx.fillText(rangeText, pillX + bw / 2, pillY + (pillH - pillFont) / 2);
+    ctx.textAlign = "left";
 
     // hero
     const ratings = dailyData.ratings || [];
     const avg = ratings.length ? (ratings.reduce((s, r) => s + Number(r.value || 0), 0) / ratings.length).toFixed(1) : "-";
     const eff = Number(dailyData.effective_minutes || 0) / 60;
-    const focus = Number(dailyData.focus_ratio || 0).toFixed(0);
+    const focusVal = Number(dailyData.focus_ratio || 0);
+    const focus = focusVal.toFixed(0);
     ctx.fillStyle = "rgba(255,255,255,0.75)";
-    ctx.font = exportFont(700, 13 * S);
-    ctx.fillText(`DAY ${dayNum} · IN FOCUS`, 52 * S, 170);
+    ctx.font = serifFont(700, 13 * S);
+    ctx.fillText(`DAY ${dayNum} · IN FOCUS`, 52 * S, 93 * S);
     ctx.fillStyle = "#ffffff";
     ctx.shadowColor = "rgba(0,0,0,0.28)";
     ctx.shadowBlur = 28 * S;
     ctx.font = exportFont(900, 118 * S);
-    ctx.fillText(eff.toFixed(1), 52 * S, 220);
+    ctx.fillText(eff.toFixed(1), 52 * S, 118 * S);
     ctx.shadowBlur = 0;
     ctx.fillStyle = "rgba(255,255,255,0.9)";
-    ctx.font = exportFont(800, 26 * S);
-    ctx.fillText("FOCUS HOURS TODAY", 52 * S, 480);
+    ctx.font = serifFont(700, 26 * S);
+    ctx.fillText("FOCUS HOURS TODAY", 52 * S, 248 * S);
+    const focusW = ctx.measureText("FOCUS HOURS TODAY").width;
     const subTxt = `评分 ${avg} ★ · 专注率 ${focus}%`;
-    const sw = 13 * S * String(subTxt).length * 1.0 + 56 * S;
+    const chipFont = 14.5 * S;
+    ctx.font = exportFont(700, chipFont);
+    const chipTw = ctx.measureText(subTxt).width;
+    const chipW2 = chipTw + 64 * S, chipH2 = chipFont + 30 * S;
     ctx.save();
-    ctx.translate(52 * S, 560);
+    ctx.translate(52 * S, 286 * S);
     ctx.rotate(-1.5 * Math.PI / 180);
-    drawRoundedRect(ctx, 0, 0, sw, 52 * S, 26 * S);
+    drawRoundedRect(ctx, 0, 0, chipW2, chipH2, chipH2 / 2);
     ctx.fillStyle = "#ffd640";
     ctx.fill();
     ctx.fillStyle = "#3a1f00";
-    ctx.font = exportFont(700, 12.5 * S);
-    ctx.fillText(subTxt, 28 * S, 15 * S);
+    ctx.textAlign = "center";
+    ctx.fillText(subTxt, chipW2 / 2, 15 * S);
+    ctx.textAlign = "left";
     ctx.restore();
+    // 评分/标题两行的右侧大 emoji：按专注率选（🔥≥90 ⚡≥70 ☕≥50 😴<50）
+    const heroEmoji = focusVal >= 90 ? "🔥" : focusVal >= 70 ? "⚡" : focusVal >= 50 ? "☕" : "😴";
+    ctx.font = `${72 * S}px ${EXPORT_FONT}`;
+    ctx.fillText(heroEmoji, 52 * S + Math.max(focusW, chipW2) + 12 * S, 253 * S);
 
     // 时间轴
     const segColors = {
         activeOnDuty: "#ffd640",
-        onDutyIdle: "#ffffff",
+        onDutyIdle: "rgba(255,255,255,0.85)",
         activeOffDuty: "#ff9e8a",
-        offDutyIdle: "rgba(255,255,255,0.18)",
+        offDutyIdle: "rgba(255,255,255,0.30)",
     };
-    const tlX = 52 * S, tlW = W - 104 * S, tlY = 340 * S, tlH = 104 * S;
+    const tlX = 52 * S, tlW = W - 104 * S, tlY = 348 * S, tlH = 104 * S;
     drawRoundedRect(ctx, tlX, tlY, tlW, tlH, 12 * S);
-    ctx.fillStyle = "rgba(255,255,255,0.15)";
+    ctx.fillStyle = "rgba(0,0,0,0.14)";
     ctx.fill();
+    ctx.save();
+    drawRoundedRect(ctx, tlX, tlY, tlW, tlH, 12 * S);
+    ctx.clip();
     for (const seg of dailyData.timeline_segments || []) {
         const cls = exportSegmentClass(seg);
         const start = Number(seg.start_min || 0);
@@ -2548,19 +2568,20 @@ async function composeDailyMagazineBlob(dailyData) {
         if (end <= start) continue;
         const x = tlX + (start / 1440) * tlW;
         const w = ((end - start) / 1440) * tlW;
-        ctx.fillStyle = segColors[cls] || "rgba(255,255,255,0.18)";
+        ctx.fillStyle = segColors[cls] || "rgba(255,255,255,0.30)";
         ctx.fillRect(x, tlY + 4 * S, Math.max(w, 1 * S), tlH - 8 * S);
     }
+    ctx.restore();
     ctx.fillStyle = "rgba(255,255,255,0.6)";
-    ctx.font = exportFont(700, 10 * S);
+    ctx.font = serifFont(700, 10 * S);
     ctx.textAlign = "left";
-    ctx.fillText("00", tlX, tlY + tlH + 18 * S);
+    ctx.fillText("00", tlX, tlY + tlH + 10 * S);
     ctx.textAlign = "center";
-    ctx.fillText("06", tlX + tlW * 0.25, tlY + tlH + 18 * S);
-    ctx.fillText("12", tlX + tlW * 0.5, tlY + tlH + 18 * S);
-    ctx.fillText("18", tlX + tlW * 0.75, tlY + tlH + 18 * S);
+    ctx.fillText("06", tlX + tlW * 0.25, tlY + tlH + 10 * S);
+    ctx.fillText("12", tlX + tlW * 0.5, tlY + tlH + 10 * S);
+    ctx.fillText("18", tlX + tlW * 0.75, tlY + tlH + 10 * S);
     ctx.textAlign = "right";
-    ctx.fillText("24", tlX + tlW, tlY + tlH + 18 * S);
+    ctx.fillText("24", tlX + tlW, tlY + tlH + 10 * S);
     ctx.textAlign = "left";
 
     // 打卡芯片
@@ -2573,19 +2594,23 @@ async function composeDailyMagazineBlob(dailyData) {
         drawRoundedRect(ctx, cx, chipY, chipW, chipH, 10 * S);
         ctx.fillStyle = "rgba(255,255,255,0.14)";
         ctx.fill();
+        const isOut = String(m.action || "").includes("out");
+        drawRoundedRect(ctx, cx + 12 * S, chipY + 16 * S, 4 * S, chipH - 32 * S, 2 * S);
+        ctx.fillStyle = isOut ? "#ff9e8a" : "#ffd640";
+        ctx.fill();
         ctx.fillStyle = "#ffffff";
-        ctx.font = exportFont(900, 16 * S);
+        ctx.font = exportFont(900, 20 * S);
         ctx.textAlign = "center";
-        ctx.fillText(m.time || "--:--", cx + chipW / 2, chipY + 18 * S);
+        ctx.fillText(m.time || "--:--", cx + chipW / 2, chipY + 20 * S);
         ctx.fillStyle = "rgba(255,255,255,0.7)";
-        ctx.font = exportFont(700, 9.5 * S);
+        ctx.font = serifFont(700, 11 * S);
         const markLabel = exportCheckinLabel(m, markLabels);
         ctx.fillText(markLabel, cx + chipW / 2, chipY + 52 * S);
         ctx.textAlign = "left";
     });
 
     // 底部统计
-    const statsY = chipY + chipH + 40 * S;
+    const statsY = chipY + chipH + 44 * S;
     const onDutyH = (Number(dailyData.on_duty_minutes || 0) / 60).toFixed(1);
     const activeH = (Number(dailyData.active_minutes || 0) / 60).toFixed(1);
     const slackMin = Math.max(0, Number(dailyData.on_duty_minutes || 0) - Number(dailyData.effective_minutes || 0));
@@ -2594,26 +2619,26 @@ async function composeDailyMagazineBlob(dailyData) {
         { v: `${activeH}h`, l: "活跃" },
         { v: `${slackMin}m`, l: "摸鱼" },
     ];
-    const cardW = (tlW - 2 * 20 * S) / 3;
+    const cardW = (tlW - 2 * 28 * S) / 3;
     stats.forEach((s, i) => {
-        const cx = tlX + i * (cardW + 20 * S);
-        drawRoundedRect(ctx, cx, statsY, cardW, 110 * S, 14 * S);
+        const cx = tlX + i * (cardW + 28 * S);
+        drawRoundedRect(ctx, cx, statsY, cardW, 88 * S, 14 * S);
         ctx.fillStyle = "rgba(255,255,255,0.14)";
         ctx.fill();
         ctx.strokeStyle = "rgba(255,255,255,0.22)";
         ctx.lineWidth = 1 * S;
         ctx.stroke();
         ctx.fillStyle = "#ffffff";
-        ctx.font = exportFont(900, 19 * S);
+        ctx.font = exportFont(900, 24 * S);
         ctx.textAlign = "center";
-        ctx.fillText(s.v, cx + cardW / 2, statsY + 20 * S);
+        ctx.fillText(s.v, cx + cardW / 2, statsY + 23 * S);
         ctx.fillStyle = "rgba(255,255,255,0.75)";
-        ctx.font = exportFont(600, 9.5 * S);
-        ctx.fillText(s.l, cx + cardW / 2, statsY + 62 * S);
+        ctx.font = serifFont(600, 10 * S);
+        ctx.fillText(s.l, cx + cardW / 2, statsY + 55 * S);
         ctx.textAlign = "left";
     });
-    ctx.fillStyle = "rgba(255,255,255,0.55)";
-    ctx.font = exportFont(600, 10 * S);
+    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.font = serifFont(600, 10 * S);
     ctx.textAlign = "center";
     ctx.fillText("TIME LEAVES ITS TRACE · 时间有迹可循", W / 2, H - 48 * S);
     ctx.textAlign = "left";
@@ -2792,45 +2817,61 @@ async function composeDailyReceiptBlob(dailyData) {
     const { canvas, ctx } = createExportCanvas(W, H);
     ctx.fillStyle = "#fbfaf5";
     ctx.fillRect(0, 0, W, H);
-    // 左右锯齿打孔边
+    // 上下边缘打孔（大孔、有间隙）；左右侧边直切
     ctx.fillStyle = "#0c0d12";
-    for (let y = 0; y < H; y += 14 * S) {
+    for (let x = 0; x < W; x += 28 * S) {
         ctx.beginPath();
-        ctx.arc(10 * S, y + 7 * S, 7 * S, 0, Math.PI * 2);
+        ctx.arc(x + 9 * S, 0, 9 * S, 0, Math.PI * 2);
         ctx.fill();
         ctx.beginPath();
-        ctx.arc(W - 10 * S, y + 7 * S, 7 * S, 0, Math.PI * 2);
+        ctx.arc(x + 9 * S, H, 9 * S, 0, Math.PI * 2);
         ctx.fill();
     }
-    // 顶部打孔线
+    // 顶部撕口虚线
     ctx.strokeStyle = "#c9c6ba";
     ctx.lineWidth = 2 * S;
     ctx.setLineDash([10 * S, 8 * S]);
     ctx.beginPath();
-    ctx.moveTo(28 * S, 30 * S);
-    ctx.lineTo(W - 28 * S, 30 * S);
+    ctx.moveTo(56 * S, 26 * S);
+    ctx.lineTo(W - 56 * S, 26 * S);
     ctx.stroke();
     ctx.setLineDash([]);
 
     const dateStr = dailyData.date || fmtDate(new Date());
     const weekday = WEEKDAY_CN[new Date(`${dateStr}T00:00:00`).getDay()] || "";
-    const MONO = "'Courier New',Courier,monospace";
+    const MONO = "'Courier New','SimSun','FangSong',serif"; // 西文打字机 + 中文宋体/仿宋（复古）
+    const ML = 88 * S, MR = W - 88 * S; // 文字版心（窄、大留白）
+    const RX_L = 56 * S, RX_R = W - 56 * S; // 分割横线用更宽的边距
+
+    const dashedRule = (ry) => {
+        ctx.strokeStyle = "#cfccc0";
+        ctx.lineWidth = 1 * S;
+        ctx.setLineDash([4 * S, 5 * S]);
+        ctx.beginPath();
+        ctx.moveTo(RX_L, ry);
+        ctx.lineTo(RX_R, ry);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    };
+    const solidRule = (ry, lw) => {
+        ctx.strokeStyle = "#1c1c1c";
+        ctx.lineWidth = lw * S;
+        ctx.beginPath();
+        ctx.moveTo(RX_L, ry);
+        ctx.lineTo(RX_R, ry);
+        ctx.stroke();
+    };
 
     // 抬头
     ctx.textAlign = "center";
     ctx.fillStyle = "#1c1c1c";
     ctx.font = `700 ${20 * S}px ${MONO}`;
-    ctx.fillText("FLOWTRACE 工时小票", W / 2, 64 * S);
+    ctx.fillText("FLOWTRACE 工时小票", W / 2, 56 * S);
     ctx.fillStyle = "#777777";
     ctx.font = `500 ${11 * S}px ${MONO}`;
-    ctx.fillText(`NO. ${String(dateStr).replace(/-/g, "")}-001 · ${weekday}`, W / 2, 104 * S);
+    ctx.fillText(`NO. ${String(dateStr).replace(/-/g, "")}-001 · ${weekday}`, W / 2, 92 * S);
     ctx.textAlign = "left";
-    ctx.strokeStyle = "#1c1c1c";
-    ctx.lineWidth = 3 * S;
-    ctx.beginPath();
-    ctx.moveTo(56 * S, 140 * S);
-    ctx.lineTo(W - 56 * S, 140 * S);
-    ctx.stroke();
+    solidRule(118 * S, 3);
 
     // 明细行
     const onDutyH = (Number(dailyData.on_duty_minutes || 0) / 60).toFixed(1);
@@ -2846,108 +2887,174 @@ async function composeDailyReceiptBlob(dailyData) {
         ["摸鱼时段", `${(slackMin / 60).toFixed(2)} h`],
         ["评分记录", `${avg} ★ × ${ratings.length}`],
     ];
-    let y = 180 * S;
+    let y = 150 * S;
     rows.forEach(([k, v]) => {
         ctx.fillStyle = "#666666";
         ctx.font = `500 ${13 * S}px ${MONO}`;
-        ctx.fillText(k, 56 * S, y);
+        ctx.fillText(k, ML, y);
         ctx.fillStyle = k === "有效专注" ? "#0b7a3b" : "#1c1c1c";
         ctx.font = `700 ${13 * S}px ${MONO}`;
-        const vw = ctx.measureText(v).width;
-        ctx.fillText(v, W - 56 * S - vw, y);
-        ctx.strokeStyle = "#cfccc0";
-        ctx.lineWidth = 1 * S;
-        ctx.setLineDash([4 * S, 6 * S]);
-        ctx.beginPath();
-        ctx.moveTo(56 * S, y + 22 * S);
-        ctx.lineTo(W - 56 * S, y + 22 * S);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        y += 44 * S;
+        ctx.textAlign = "right";
+        ctx.fillText(v, MR, y);
+        ctx.textAlign = "left";
+        y += 32 * S;
     });
+    dashedRule(310 * S);
 
-    // 打卡记录
+    // 打卡记录（首条 + 末条，中间折叠灰字居中）
     ctx.fillStyle = "#a3322a";
     ctx.font = `700 ${11 * S}px ${MONO}`;
-    ctx.fillText("— 打卡记录 —", 56 * S, y + 8 * S);
-    y += 40 * S;
-    const marks = dailyData.checkin_marks || [];
-    marks.slice(0, 2).forEach((m) => {
+    ctx.fillText("— 打卡记录 —", ML, 330 * S);
+    const marks = (dailyData.checkin_marks || [])
+        .slice()
+        .sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")));
+    let cy = 356 * S;
+    const drawMarkRow = (m) => {
         const isIn = !String(m.action || "").includes("out");
         ctx.fillStyle = "#888888";
         ctx.font = `500 ${12 * S}px ${MONO}`;
-        ctx.fillText(m.time || "--:--", 56 * S, y);
+        ctx.fillText(m.time || "--:--", ML, cy);
         const markText = checkinText(m.action, !!m.anomaly, !!m.inferred, !!m.current);
-        ctx.fillText("▸ " + markText + (m.current ? " 🕒" : isIn ? " ▼" : " ▲"), 200 * S, y);
         ctx.fillStyle = m.current ? "#b8860b" : isIn ? "#0b7a3b" : "#a3322a";
         ctx.font = `700 ${12 * S}px ${MONO}`;
-        y += 32 * S;
-    });
+        ctx.textAlign = "right";
+        ctx.fillText((m.current ? "" : isIn ? "▼ " : "▲ ") + markText, MR, cy);
+        ctx.textAlign = "left";
+        cy += 24 * S;
+    };
+    const drawFoldLine = (text) => {
+        ctx.fillStyle = "#999999";
+        ctx.font = `500 ${11 * S}px ${MONO}`;
+        ctx.textAlign = "center";
+        ctx.fillText(text, W / 2, cy);
+        ctx.textAlign = "left";
+        cy += 24 * S;
+    };
+    if (!marks.length) {
+        drawFoldLine("— 今日暂无打卡 —");
+    } else {
+        drawMarkRow(marks[0]);
+        if (marks.length > 2) {
+            const middle = marks.slice(1, -1);
+            const times = middle.map((m) => m.time || "--:--").join(" · ");
+            drawFoldLine(middle.length <= 4 ? `… ${times} …` : `… 还有 ${middle.length} 次打卡 …`);
+        }
+        if (marks.length > 1) drawMarkRow(marks[marks.length - 1]);
+    }
+    dashedRule(cy + 14 * S);
 
-    // 字符画时间线（48 格 × 30min）
+    // 合计（双实线夹行，随打卡区流式下移）
+    const totalY = cy + 36 * S;
+    solidRule(totalY, 3);
+    ctx.fillStyle = "#1c1c1c";
+    ctx.font = `700 ${13 * S}px ${MONO}`;
+    ctx.fillText("今日合计", ML, totalY + 18 * S);
+    ctx.fillStyle = "#0b7a3b";
+    ctx.font = `700 ${14 * S}px ${MONO}`;
+    ctx.textAlign = "right";
+    ctx.fillText(`${effH.toFixed(1)}h 有效专注`, MR, totalY + 18 * S);
+    ctx.textAlign = "left";
+    solidRule(totalY + 48 * S, 1);
+
+    // 工作日程条码（24 格 × 1h）：等高条，粗 = 活跃分钟，色 = 主导状态，黑 = 没工作
     ctx.fillStyle = "#a3322a";
     ctx.font = `700 ${11 * S}px ${MONO}`;
-    ctx.fillText("— 时间线（每格 30min）—", 56 * S, y + 6 * S);
-    y += 34 * S;
-    const cells = [];
-    for (let m = 0; m < 1440; m += 30) {
-        const seg = (dailyData.timeline_segments || []).find((s) => m >= Number(s.start_min || 0) && m < Number(s.end_min || 0));
-        const cls = seg ? exportSegmentClass(seg) : "offDutyIdle";
-        cells.push(cls === "activeOnDuty" || cls === "activeOffDuty" ? ["▓", "#0b7a3b"] : cls === "onDutyIdle" ? ["▒", "#b8860b"] : ["·", "#b5b2a6"]);
+    ctx.fillText("— 工作日程（每格 1h）—", ML, totalY + 76 * S);
+    const stripY = totalY + 104 * S, stripH = 48 * S;
+    const SCH_COLORS = { activeOnDuty: "#0b7a3b", onDutyIdle: "#b8860b", activeOffDuty: "#4a7dbd", offDutyIdle: "#1c1c1c" };
+    const segs = dailyData.timeline_segments || [];
+    const barW = [], barC = [];
+    for (let h = 0; h < 24; h++) {
+        const hs = h * 60, he = hs + 60, acc = {};
+        for (const sg of segs) {
+            const lo = Math.max(Number(sg.start_min || 0), hs);
+            const hi = Math.min(Number(sg.end_min || 0), he);
+            if (hi <= lo) continue;
+            const cls = exportSegmentClass(sg);
+            acc[cls] = (acc[cls] || 0) + (hi - lo);
+        }
+        const act = (acc.activeOnDuty || 0) + (acc.activeOffDuty || 0);
+        let dom = "offDutyIdle", best = 0;
+        for (const k in acc) {
+            if (acc[k] > best) { best = acc[k]; dom = k; }
+        }
+        barW.push((2 + Math.round((act / 60) * 8)) * S);
+        barC.push(SCH_COLORS[dom] || SCH_COLORS.offDutyIdle);
     }
-    marks.slice(0, 2).forEach((m) => {
+    // 等间距连续排布：条间距固定、与粗细无关；整体居中，宽度由数据决定
+    const gapW = 4 * S;
+    const totalW = barW.reduce((a, b) => a + b, 0) + gapW * 23;
+    const centers = [];
+    let curX = (W - totalW) / 2;
+    for (let h = 0; h < 24; h++) {
+        curX += barW[h] / 2;
+        centers.push(curX);
+        ctx.fillStyle = barC[h];
+        ctx.fillRect(curX - barW[h] / 2, stripY, barW[h], stripH);
+        curX += barW[h] / 2 + gapW;
+    }
+    const stripRight = curX - gapW;
+    // 打卡标记（首/尾 = 箭头指向条带；中间 = 下沿圆点）
+    marks.forEach((m, idx) => {
         const [hh, mi] = String(m.time || "00:00").split(":").map(Number);
-        const idx = Math.floor(((hh || 0) * 60 + (mi || 0)) / 30);
-        if (idx >= 0 && idx < 48) cells[idx] = [m.current ? "🕒" : String(m.action || "").includes("out") ? "▼" : "▲", "#1c1c1c"];
+        const fh = ((hh || 0) * 60 + (mi || 0)) / 60;
+        if (fh < 0 || fh > 24) return;
+        const cx = centers[Math.min(23, Math.max(0, Math.floor(fh)))];
+        ctx.fillStyle = "#1c1c1c";
+        if (idx !== 0 && idx !== marks.length - 1) {
+            ctx.beginPath();
+            ctx.arc(cx, stripY + stripH + 5 * S, 2 * S, 0, Math.PI * 2);
+            ctx.fill();
+            return;
+        }
+        const isOut = String(m.action || "").includes("out");
+        ctx.beginPath();
+        if (isOut) {
+            // 下沿 ▲ 向上指向条带
+            ctx.moveTo(cx - 4 * S, stripY + stripH + 9 * S);
+            ctx.lineTo(cx + 4 * S, stripY + stripH + 9 * S);
+            ctx.lineTo(cx, stripY + stripH + 2 * S);
+        } else {
+            // 上沿 ▼ 向下指向条带
+            ctx.moveTo(cx - 4 * S, stripY - 9 * S);
+            ctx.lineTo(cx + 4 * S, stripY - 9 * S);
+            ctx.lineTo(cx, stripY - 2 * S);
+        }
+        ctx.closePath();
+        ctx.fill();
     });
-    const charW = 15 * S;
-    ctx.font = `700 ${13 * S}px ${MONO}`;
-    cells.forEach(([ch, color], i) => {
-        const row = Math.floor(i / 24);
-        const col = i % 24;
-        ctx.fillStyle = color;
-        ctx.fillText(ch, 56 * S + col * charW, y + row * 24 * S);
-    });
-    y += 54 * S;
-    const ticks = ["00", "06", "12", "18", "24"];
+    // 刻度（钉在对应小时的条码中心）
+    const tickY = stripY + stripH + 14 * S;
     ctx.fillStyle = "#999999";
     ctx.font = `500 ${9 * S}px ${MONO}`;
-    ticks.forEach((t, i) => {
-        ctx.fillText(t, 56 * S + Math.floor(i * 24 / 4) * charW - (i === 0 ? 0 : i === 4 ? 16 * S : 8 * S), y);
+    [[0, "00"], [6, "06"], [12, "12"], [18, "18"], [24, "24"]].forEach(([hr, t]) => {
+        ctx.textAlign = hr === 24 ? "right" : "center";
+        ctx.fillText(t, hr === 24 ? stripRight : centers[hr], tickY);
     });
-    y += 36 * S;
-
-    // 合计
-    ctx.strokeStyle = "#1c1c1c";
-    ctx.lineWidth = 3 * S;
-    ctx.beginPath();
-    ctx.moveTo(56 * S, y);
-    ctx.lineTo(W - 56 * S, y);
-    ctx.stroke();
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#1c1c1c";
-    ctx.font = `700 ${14 * S}px ${MONO}`;
-    ctx.fillText(`今日合计：${effH.toFixed(1)}h 有效专注`, W / 2, y + 24 * S);
+    ctx.textAlign = "left";
+    // 图例
+    const legend = [["在岗活跃", SCH_COLORS.activeOnDuty], ["闲置", SCH_COLORS.onDutyIdle], ["下班活跃", SCH_COLORS.activeOffDuty], ["未工作", SCH_COLORS.offDutyIdle]];
+    const lgY = tickY + 18 * S;
+    ctx.font = `500 ${8 * S}px ${MONO}`;
+    ctx.textAlign = "right";
+    let lgX = stripRight;
+    for (let i = legend.length - 1; i >= 0; i--) {
+        const [label, color] = legend[i];
+        const tw = ctx.measureText(label).width;
+        ctx.fillStyle = "#888888";
+        ctx.fillText(label, lgX, lgY);
+        const swX = lgX - tw - 11 * S;
+        ctx.fillStyle = color;
+        ctx.fillRect(swX, lgY + 1 * S, 7 * S, 7 * S);
+        lgX = swX - 9 * S;
+    }
     ctx.textAlign = "left";
 
-    // 印章
-    ctx.save();
-    ctx.translate(W - 140 * S, H - 120 * S);
-    ctx.rotate(-8 * Math.PI / 180);
-    ctx.strokeStyle = "#a3322a";
-    ctx.lineWidth = 5 * S;
-    ctx.strokeRect(-90 * S, -26 * S, 180 * S, 52 * S);
-    ctx.fillStyle = "#a3322a";
-    ctx.font = `700 ${13 * S}px ${MONO}`;
-    ctx.textAlign = "center";
-    ctx.fillText("已记录", 0, -8 * S);
-    ctx.restore();
-    ctx.textAlign = "left";
-
+    // 页脚
     ctx.fillStyle = "#999999";
     ctx.font = `500 ${10 * S}px ${MONO}`;
     ctx.textAlign = "center";
-    ctx.fillText("FLOWTRACE · 时间有迹可循 · 感谢记录每一天", W / 2, H - 40 * S);
+    ctx.fillText("FLOWTRACE · 时间有迹可循 · 感谢记录每一天", W / 2, H - 44 * S);
     ctx.textAlign = "left";
     return canvasBlob(canvas);
 }
@@ -4050,13 +4157,23 @@ async function composeDailyWalkmanBlob(dailyData) {
         ctx.fillText(b, bx + 24, by + 9);
         ctx.textAlign = "left";
     });
-    // EQ 均衡器
+    // EQ 均衡器（= 每 3 小时活跃分钟，归一化）
     const eqY = wwY + wwH + 84, eqH = 96;
-    const eqHeights = [46, 70, 55, 88, 62, 40, 75, 58];
+    const bucketMin = new Array(8).fill(0);
+    for (const seg of dailyData.timeline_segments || []) {
+        const cls = exportSegmentClass(seg);
+        if (cls !== "activeOnDuty" && cls !== "activeOffDuty") continue;
+        const s0 = Number(seg.start_min || 0), e0 = Number(seg.end_min || 0);
+        for (let b = 0; b < 8; b++) {
+            const lo = Math.max(s0, b * 180), hi = Math.min(e0, b * 180 + 180);
+            if (hi > lo) bucketMin[b] += hi - lo;
+        }
+    }
+    const eqMax = Math.max(1, ...bucketMin);
     const eqGap = 20, eqW = 60;
-    eqHeights.forEach((h, i) => {
+    bucketMin.forEach((min, i) => {
         const bx = wmX + 90 + i * (eqW + eqGap);
-        const bh = (h / 100) * eqH;
+        const bh = min === 0 ? 6 : Math.max(10, (min / eqMax) * eqH);
         const g = ctx.createLinearGradient(0, eqY + eqH - bh, 0, eqY + eqH);
         g.addColorStop(0, "#01cdfe");
         g.addColorStop(1, "#ff71ce");
@@ -4099,9 +4216,12 @@ async function composeDailyWalkmanBlob(dailyData) {
     ctx.stroke();
     ctx.fillStyle = "#ffffff";
     ctx.font = exportFont(700, 12 * S);
-    const t1 = marks[0] ? `${marks[0].time} ${marks[0].current ? "进行中（截至当前） 🕒" : "PLAY ▸"}` : "PLAY ▸";
-    const t2 = marks[1] ? `${marks[1].time} ${marks[1].current ? "进行中（截至当前） 🕒" : "STOP"}` : "STOP";
-    ctx.fillText(`${t1} ${t2}`, 104, tagY + 22);
+    const tagTxt = !marks.length
+        ? "— 今日未打卡 —"
+        : marks.length === 1
+            ? `${marks[0].time} PLAY ▸ ${marks[0].current ? "进行中" : "--:-- STOP"}`
+            : `${marks[0].time} PLAY ▸ ${marks[marks.length - 1].time} STOP`;
+    ctx.fillText(tagTxt, 104, tagY + 22);
     ctx.fillStyle = "#ffd640";
     ctx.textAlign = "right";
     ctx.fillText(`专注率 ${focus}%`, W - 104, tagY + 22);
@@ -4117,7 +4237,7 @@ async function composeDailyWalkmanBlob(dailyData) {
     const cardW = (W - 160 - 40) / 3;
     stats.forEach((s, i) => {
         const cx = 80 + i * (cardW + 20);
-        drawRoundedRect(ctx, cx, statsY, cardW, 140, i === 1 ? 30 : 40);
+        drawRoundedRect(ctx, cx, statsY, cardW, 116, i === 1 ? 26 : 34);
         ctx.fillStyle = "rgba(0,0,0,0.25)";
         ctx.fill();
         ctx.strokeStyle = "rgba(255,255,255,0.3)";
@@ -4126,7 +4246,7 @@ async function composeDailyWalkmanBlob(dailyData) {
         ctx.fillStyle = "#ffd640";
         ctx.font = exportFont(900, 20 * S);
         ctx.textAlign = "center";
-        ctx.fillText(s.v, cx + cardW / 2, statsY + 26);
+        ctx.fillText(s.v, cx + cardW / 2, statsY + 24);
         ctx.fillStyle = "rgba(255,255,255,0.7)";
         ctx.font = exportFont(600, 9 * S);
         ctx.fillText(s.l, cx + cardW / 2, statsY + 66);
