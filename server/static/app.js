@@ -2107,7 +2107,7 @@ function exportSegmentClass(seg) {
 
 // ── A-2 · GitHub 热力横版（周图）────────────────────────
 async function composeWeeklyGithubBlob(weeklyData) {
-    const S = 2, W = 760 * S, H = 420 * S;
+    const S = 2, W = 580 * S, H = 420 * S;
     const { canvas, ctx } = createExportCanvas(W, H);
     ctx.fillStyle = "#0d1117";
     ctx.fillRect(0, 0, W, H);
@@ -2121,8 +2121,10 @@ async function composeWeeklyGithubBlob(weeklyData) {
     // 顶部标题 + badge
     ctx.font = exportFont(700, 15 * S);
     ctx.fillStyle = "#e6edf3";
-    ctx.fillText("WEEKLY CONTRIBUTION", 60, 52);
-    const badgeW = 13 * S * String(rangeText).length * 0.9 + 48 * S;
+    ctx.fillText("WEEKLY CONTRIBUTION", 60, 63);
+    ctx.font = exportFont(500, 12 * S);
+    const badgeTw = ctx.measureText(rangeText).width;
+    const badgeW = badgeTw + 32 * S;
     const badgeX = W - 60 - badgeW;
     drawRoundedRect(ctx, badgeX, 44, badgeW, 34 * S, 17 * S);
     ctx.fillStyle = "#161b22";
@@ -2131,12 +2133,13 @@ async function composeWeeklyGithubBlob(weeklyData) {
     ctx.lineWidth = 1 * S;
     ctx.stroke();
     ctx.fillStyle = "#8b949e";
-    ctx.font = exportFont(500, 12 * S);
-    ctx.fillText(rangeText, badgeX + 24 * S, 54);
+    ctx.textAlign = "center";
+    ctx.fillText(rangeText, badgeX + badgeW / 2, 44 + (34 * S - 12 * S) / 2);
+    ctx.textAlign = "left";
 
     // 小时刻度 + 网格
     const gridX = 76 * S, gridY = 138 * S;
-    const sideW = 350 * S;
+    const sideW = 170 * S;
     const areaW = W - gridX - sideW;
     const gap = 6 * S, n = 12;
     const cellW = (areaW - gap * (n - 1) - 12 * S) / n;
@@ -2150,7 +2153,7 @@ async function composeWeeklyGithubBlob(weeklyData) {
     ctx.fillStyle = "#30363d";
     ctx.textAlign = "center";
     for (let i = 0; i < n; i++) {
-        ctx.fillText(String(8 + i), gridX + cellW * i + cellW / 2 + gap * i / 2, gridY - 26 * S);
+        ctx.fillText(String(8 + i), gridX + i * (cellW + gap) + cellW / 2, gridY - 26 * S);
     }
     ctx.textAlign = "left";
 
@@ -2158,7 +2161,7 @@ async function composeWeeklyGithubBlob(weeklyData) {
         ctx.font = exportFont(600, 11 * S);
         ctx.fillStyle = "#484f58";
         ctx.textAlign = "right";
-        ctx.fillText(dayKeys[ri] || "", gridX - 16 * S, gridY + ri * (cellH + rowGap) + cellH / 2 - 11 * S);
+        ctx.fillText(dayKeys[ri] || "", gridX - 16 * S, gridY + ri * (cellH + rowGap) + (cellH - 11 * S) / 2);
         ctx.textAlign = "left";
         row.forEach((lv, ci) => {
             const x = gridX + ci * (cellW + gap);
@@ -2194,7 +2197,7 @@ async function composeWeeklyGithubBlob(weeklyData) {
         ctx.fillText(m.u, barX + 24 * S + vw + 8 * S, y + 8 * S);
         ctx.fillStyle = "#484f58";
         ctx.font = exportFont(500, 11 * S);
-        ctx.fillText(m.l, barX + 24 * S, y + 42 * S);
+        ctx.fillText(m.l, barX + 24 * S, y + 34 * S);
     });
 
     // footer
@@ -2232,13 +2235,17 @@ async function composeWeeklyWrappedBlob(weeklyData) {
     ctx.font = exportFont(700, 12 * S);
     ctx.fillStyle = "rgba(255,255,255,0.4)";
     ctx.fillText("FLOWTRACE", 64, 80);
-    const bw = 12 * S * String(rangeText).length * 0.85 + 40 * S;
-    drawRoundedRect(ctx, W - 64 - bw, 74, bw, 34 * S, 17 * S);
+    ctx.font = exportFont(500, 12 * S);
+    const badgeTw = ctx.measureText(rangeText).width;
+    const bw = badgeTw + 32 * S;
+    const badgeX = W - 64 - bw;
+    drawRoundedRect(ctx, badgeX, 74, bw, 34 * S, 17 * S);
     ctx.fillStyle = "rgba(255,255,255,0.06)";
     ctx.fill();
-    ctx.fillStyle = "rgba(255,255,255,0.3)";
-    ctx.font = exportFont(500, 11 * S);
-    ctx.fillText(rangeText, W - 64 - bw + 20 * S, 82);
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.textAlign = "center";
+    ctx.fillText(rangeText, badgeX + bw / 2, 74 + (34 * S - 12 * S) / 2);
+    ctx.textAlign = "left";
 
     // hero
     const eff = Number(weeklyData.effective_hours || 0).toFixed(1);
@@ -2259,17 +2266,20 @@ async function composeWeeklyWrappedBlob(weeklyData) {
     const ratioTxt = `专注率 ${Number(weeklyData.focus_ratio || 0).toFixed(0)}% · 上周 +${Number(weeklyData.delta_hours || 0).toFixed(1)}h`;
     const rw = 14 * S * String(ratioTxt).length * 0.95 + 56 * S;
     drawRoundedRect(ctx, W / 2 - rw / 2, numY + 125 * S, rw, 40 * S, 20 * S);
-    ctx.fillStyle = "rgba(29,185,84,0.1)";
+    ctx.fillStyle = "rgba(29,185,84,0.18)";
     ctx.fill();
+    ctx.strokeStyle = "rgba(29,185,84,0.35)";
+    ctx.lineWidth = 1 * S;
+    ctx.stroke();
     ctx.fillStyle = "#1db954";
     ctx.font = exportFont(600, 14 * S);
-    ctx.fillText(ratioTxt, W / 2, numY + 133 * S);
+    ctx.fillText(ratioTxt, W / 2, numY + 138 * S);
     ctx.textAlign = "left";
 
     // 每日条形
     const days = weeklyData.days || [];
     const maxMin = 540;
-    const barX = 96 * S, barW = W - 192 * S, barY = numY + 170 * S, rowH = 44 * S, rowGap = 12 * S;
+    const barX = 96 * S, barW = W - 192 * S, barY = numY + 170 * S, rowH = 44 * S, rowGap = 8 * S;
     const dayKeys = ["一", "二", "三", "四", "五", "六", "日"];
     days.slice(0, 7).forEach((d, i) => {
         const effMin = Number(d.effective_minutes || 0);
@@ -2288,12 +2298,22 @@ async function composeWeeklyWrappedBlob(weeklyData) {
             if (effMin >= 420) fill = ctx.createLinearGradient(barX, 0, barX + barW * pct, 0), fill.addColorStop(0, "#1db954"), fill.addColorStop(1, "#1ed760");
             else if (effMin >= 240) fill = ctx.createLinearGradient(barX, 0, barX + barW * pct, 0), fill.addColorStop(0, "#6366f1"), fill.addColorStop(1, "#818cf8");
             else fill = ctx.createLinearGradient(barX, 0, barX + barW * pct, 0), fill.addColorStop(0, "#f59e0b"), fill.addColorStop(1, "#fbbf24");
-            drawRoundedRect(ctx, barX, y, Math.max(barW * pct, 8 * S), rowH, 6 * S);
+            const fillW = Math.max(barW * pct, 8 * S);
+            drawRoundedRect(ctx, barX, y, fillW, rowH, 6 * S);
             ctx.fillStyle = fill;
             ctx.fill();
-            ctx.fillStyle = "rgba(255,255,255,0.9)";
+            const label = `${(effMin / 60).toFixed(1)}h`;
             ctx.font = exportFont(700, 11 * S);
-            ctx.fillText(`${(effMin / 60).toFixed(1)}h`, barX + barW * pct - 36 * S, y + 17 * S);
+            const lw = ctx.measureText(label).width;
+            if (fillW >= lw + 40 * S) {
+                // 柱内右对齐
+                ctx.fillStyle = "rgba(255,255,255,0.9)";
+                ctx.fillText(label, barX + fillW - lw - 10 * S, y + 17 * S);
+            } else {
+                // 短柱：数值放柱外右侧
+                ctx.fillStyle = "rgba(255,255,255,0.75)";
+                ctx.fillText(label, barX + fillW + 10 * S, y + 17 * S);
+            }
         } else {
             drawRoundedRect(ctx, barX, y, barW, rowH, 6 * S);
             ctx.fillStyle = "rgba(255,255,255,0.08)";
@@ -2302,7 +2322,7 @@ async function composeWeeklyWrappedBlob(weeklyData) {
     });
 
     // 底部统计
-    const bottomY = barY + 7 * (rowH + rowGap) + 30 * S;
+    const bottomY = barY + 7 * (rowH + rowGap) + 40 * S;
     const stats = [
         { v: `${Number(weeklyData.total_hours || 0).toFixed(1)}h`, l: "总在岗" },
         { v: `${weeklyData.days_with_data || 0}/7`, l: "出勤" },
@@ -2318,16 +2338,16 @@ async function composeWeeklyWrappedBlob(weeklyData) {
         ctx.textAlign = "center";
         ctx.fillStyle = "#ffffff";
         ctx.font = exportFont(800, 22 * S);
-        ctx.fillText(s.v, x, bottomY + 24 * S);
+        ctx.fillText(s.v, x, bottomY + 22 * S);
         ctx.fillStyle = "rgba(255,255,255,0.3)";
         ctx.font = exportFont(500, 11 * S);
-        ctx.fillText(s.l, x, bottomY + 60 * S);
+        ctx.fillText(s.l, x, bottomY + 58 * S);
     });
     ctx.textAlign = "left";
     ctx.fillStyle = "rgba(255,255,255,0.15)";
     ctx.font = exportFont(400, 11 * S);
     ctx.textAlign = "center";
-    ctx.fillText("时间有迹可循", W / 2, H - 16 * S);
+    ctx.fillText("时间有迹可循", W / 2, H - 36 * S);
     ctx.textAlign = "left";
     return canvasBlob(canvas);
 }
@@ -2336,6 +2356,8 @@ async function composeWeeklyWrappedBlob(weeklyData) {
 async function composeWeeklyMagazineBlob(weeklyData) {
     const S = 2, W = 480 * S, H = 760 * S;
     const { canvas, ctx } = createExportCanvas(W, H);
+    const SERIF = "'Times New Roman',Georgia,'SimSun','FangSong',serif";
+    const serifFont = (weight, px) => `${weight} ${px}px ${SERIF}`;
     const bg = ctx.createLinearGradient(0, 0, W * 0.4, H);
     bg.addColorStop(0, "#ff4d2e");
     bg.addColorStop(0.48, "#ff2e63");
@@ -2355,44 +2377,59 @@ async function composeWeeklyMagazineBlob(weeklyData) {
 
     // 顶部
     ctx.fillStyle = "#ffffff";
-    ctx.font = exportFont(700, 12 * S);
-    ctx.fillText("FLOWTRACE", 52 * S, 64);
+    ctx.font = exportFont(700, 16 * S);
+    ctx.fillText("FLOWTRACE", 52 * S, 36 * S);
     const rangeText = `${(weeklyData.week_start || "").slice(5).replace("-", ".")} — ${(weeklyData.week_end || "").slice(5).replace("-", ".")}`;
-    const bw = 11 * S * String(rangeText).length * 0.9 + 48 * S;
-    drawRoundedRect(ctx, W - 52 * S - bw, 56, bw, 36 * S, 18 * S);
+    const pillFont = 13 * S;
+    ctx.font = exportFont(700, pillFont);
+    const pillTw = ctx.measureText(rangeText).width;
+    const bw = pillTw + 48 * S;
+    const pillX = W - 52 * S - bw, pillY = 30 * S, pillH = 44 * S;
+    drawRoundedRect(ctx, pillX, pillY, bw, pillH, pillH / 2);
     ctx.strokeStyle = "rgba(255,255,255,0.55)";
     ctx.lineWidth = 1.5 * S;
     ctx.stroke();
     ctx.fillStyle = "#ffffff";
-    ctx.font = exportFont(700, 11 * S);
-    ctx.fillText(rangeText, W - 52 * S - bw + 24 * S, 64);
+    ctx.textAlign = "center";
+    ctx.fillText(rangeText, pillX + bw / 2, pillY + (pillH - pillFont) / 2);
+    ctx.textAlign = "left";
 
     // hero
     const eff = Number(weeklyData.effective_hours || 0).toFixed(1);
+    const focusVal = Number(weeklyData.focus_ratio || 0);
     ctx.fillStyle = "rgba(255,255,255,0.75)";
-    ctx.font = exportFont(700, 13 * S);
-    ctx.fillText("MY WEEK · IN FOCUS", 52 * S, 170);
+    ctx.font = serifFont(700, 13 * S);
+    ctx.fillText("MY WEEK · IN FOCUS", 52 * S, 93 * S);
     ctx.fillStyle = "#ffffff";
     ctx.shadowColor = "rgba(0,0,0,0.28)";
     ctx.shadowBlur = 28 * S;
     ctx.font = exportFont(900, 118 * S);
-    ctx.fillText(eff, 52 * S, 220);
+    ctx.fillText(eff, 52 * S, 118 * S);
     ctx.shadowBlur = 0;
     ctx.fillStyle = "rgba(255,255,255,0.9)";
-    ctx.font = exportFont(800, 26 * S);
-    ctx.fillText("HOURS OF DEEP FOCUS", 52 * S, 480);
-    const subTxt = `专注率 ${Number(weeklyData.focus_ratio || 0).toFixed(0)}% ↑ 上周 +${Number(weeklyData.delta_hours || 0).toFixed(1)}h`;
-    const sw = 13 * S * String(subTxt).length * 1.0 + 56 * S;
+    ctx.font = serifFont(700, 26 * S);
+    ctx.fillText("HOURS OF DEEP FOCUS", 52 * S, 248 * S);
+    const focusW = ctx.measureText("HOURS OF DEEP FOCUS").width;
+    const subTxt = `专注率 ${focusVal.toFixed(0)}% ↑ 上周 +${Number(weeklyData.delta_hours || 0).toFixed(1)}h`;
+    const chipFont = 14.5 * S;
+    ctx.font = exportFont(700, chipFont);
+    const chipTw = ctx.measureText(subTxt).width;
+    const chipW2 = chipTw + 64 * S, chipH2 = chipFont + 30 * S;
     ctx.save();
-    ctx.translate(52 * S, 560);
+    ctx.translate(52 * S, 286 * S);
     ctx.rotate(-1.5 * Math.PI / 180);
-    drawRoundedRect(ctx, 0, 0, sw, 52 * S, 26 * S);
+    drawRoundedRect(ctx, 0, 0, chipW2, chipH2, chipH2 / 2);
     ctx.fillStyle = "#ffd640";
     ctx.fill();
     ctx.fillStyle = "#3a1f00";
-    ctx.font = exportFont(700, 12.5 * S);
-    ctx.fillText(subTxt, 28 * S, 15 * S);
+    ctx.textAlign = "center";
+    ctx.fillText(subTxt, chipW2 / 2, 15 * S);
+    ctx.textAlign = "left";
     ctx.restore();
+    // 评分/标题两行右侧大 emoji：按周专注率（🔥≥90 ⚡≥70 ☕≥50 😴<50）
+    const heroEmoji = focusVal >= 90 ? "🔥" : focusVal >= 70 ? "⚡" : focusVal >= 50 ? "☕" : "😴";
+    ctx.font = `${72 * S}px ${EXPORT_FONT}`;
+    ctx.fillText(heroEmoji, 52 * S + Math.max(focusW, chipW2) + 12 * S, 253 * S);
 
     // 每日条形
     const days = weeklyData.days || [];
@@ -2403,7 +2440,7 @@ async function composeWeeklyMagazineBlob(weeklyData) {
     const trackY = 385 * S, trackH = 150 * S;
     const todayStr = fmtDate(new Date());
     ctx.fillStyle = "rgba(255,255,255,0.65)";
-    ctx.font = exportFont(700, 11 * S);
+    ctx.font = serifFont(700, 11 * S);
     ctx.fillText("DAILY FOCUS HOURS", areaX, 345 * S);
     days.slice(0, 7).forEach((d, i) => {
         const effMin = Number(d.effective_minutes || 0);
@@ -2417,14 +2454,14 @@ async function composeWeeklyMagazineBlob(weeklyData) {
         ctx.fillStyle = "rgba(255,255,255,0.14)";
         ctx.fill();
         if (effMin > 0) {
-            const fh = Math.max(8 * S, trackH * (effMin / maxMin));
+            const fh = Math.max(8 * S, Math.min(trackH - 6 * S, trackH * (effMin / maxMin)));
             drawRoundedRect(ctx, cx + 6 * S, trackY + trackH - fh, colW - 12 * S, fh - 6 * S, 5 * S);
             ctx.fillStyle = d.date === todayStr ? "#ffd640" : "#ffffff";
             ctx.fill();
         }
         const dayKeys = ["一", "二", "三", "四", "五", "六", "日"];
         ctx.fillStyle = "rgba(255,255,255,0.6)";
-        ctx.font = exportFont(500, 9 * S);
+        ctx.font = serifFont(500, 9 * S);
         ctx.textAlign = "center";
         ctx.fillText(dayKeys[i] || "", cx + colW / 2, trackY + trackH + 14 * S);
         ctx.textAlign = "left";
@@ -2437,26 +2474,26 @@ async function composeWeeklyMagazineBlob(weeklyData) {
         { v: `${weeklyData.days_with_data || 0} 天`, l: "出勤" },
         { v: `${weeklyData.rating_avg != null ? Number(weeklyData.rating_avg).toFixed(1) : "-"}`, l: "周均评分" },
     ];
-    const cardW = (areaW - 2 * 20 * S) / 3;
+    const cardW = (areaW - 2 * 28 * S) / 3;
     stats.forEach((s, i) => {
-        const cx = areaX + i * (cardW + 20 * S);
-        drawRoundedRect(ctx, cx, statsY, cardW, 110 * S, 14 * S);
+        const cx = areaX + i * (cardW + 28 * S);
+        drawRoundedRect(ctx, cx, statsY, cardW, 88 * S, 14 * S);
         ctx.fillStyle = "rgba(255,255,255,0.14)";
         ctx.fill();
         ctx.strokeStyle = "rgba(255,255,255,0.22)";
         ctx.lineWidth = 1 * S;
         ctx.stroke();
         ctx.fillStyle = "#ffffff";
-        ctx.font = exportFont(900, 19 * S);
+        ctx.font = exportFont(900, 24 * S);
         ctx.textAlign = "center";
-        ctx.fillText(s.v, cx + cardW / 2, statsY + 20 * S);
+        ctx.fillText(s.v, cx + cardW / 2, statsY + 23 * S);
         ctx.fillStyle = "rgba(255,255,255,0.75)";
-        ctx.font = exportFont(600, 9.5 * S);
-        ctx.fillText(s.l, cx + cardW / 2, statsY + 62 * S);
+        ctx.font = serifFont(600, 10 * S);
+        ctx.fillText(s.l, cx + cardW / 2, statsY + 55 * S);
         ctx.textAlign = "left";
     });
-    ctx.fillStyle = "rgba(255,255,255,0.55)";
-    ctx.font = exportFont(600, 10 * S);
+    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.font = serifFont(600, 10 * S);
     ctx.textAlign = "center";
     ctx.fillText("TIME LEAVES ITS TRACE · 时间有迹可循", W / 2, H - 48 * S);
     ctx.textAlign = "left";
