@@ -181,7 +181,7 @@ ShowRating() {
     ratingGui.SetFont("s9 c" style["sub"] "", "Segoe UI")
     ratingGui.Add("Text", "x16 y36 w528 Center", subline)
 
-    labels := ["好累", "勉强", "正常", "专注", "火力全开"]
+    labels := ["好累/摸鱼", "勉强", "正常", "专注", "火力全开"]
     scoreColors := style["score_colors"]
     chipY := 68
     chipW := 96
@@ -219,7 +219,7 @@ RatingClick(ctrl, *) {
 }
 
 ScoreFromLabel(label) {
-    if (label = "好累")
+    if (label = "好累/摸鱼")
         return 1
     if (label = "勉强")
         return 2

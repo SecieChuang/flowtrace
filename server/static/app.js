@@ -510,7 +510,7 @@ function renderDailyChart(data) {
             textStyle: { color: "#5F7190", fontSize: 11 },
             selectedMode: "multiple",
             selected: dailyLegendSelected || undefined,
-            data: ["在岗活跃", "活跃(离岗)", "在岗摸鱼", "离岗", "投入强度", "打卡脉冲", "评分脉冲"],
+            data: ["在岗活跃", "活跃(离岗)", "在岗摸鱼", "离岗", "投入强度", "打卡脉冲", "状态自评"],
         },
         tooltip: {
             trigger: "item",
@@ -519,7 +519,7 @@ function renderDailyChart(data) {
                 if (p.seriesName === "打卡脉冲") {
                     return `${checkinText(p.value[2], !!p.value[4], !!p.value[3], !!p.value[5])}<br/>${t}`;
                 }
-                if (p.seriesName === "评分脉冲") return `评分 ${p.value[2]} 分<br/>${t}`;
+                if (p.seriesName === "状态自评") return `状态自评 ${p.value[2]} 分<br/>${t}`;
                 if (p.seriesName === "投入强度") return `投入强度 ${Math.round(Number(p.value[1] || 0))}%<br/>${t}`;
                 return `${p.seriesName}<br/>${t}`;
             },
@@ -636,7 +636,7 @@ function renderDailyChart(data) {
                 },
             },
             {
-                name: "评分脉冲",
+                name: "状态自评",
                 type: "scatter",
                 data: ratings,
                 symbol: "circle",
@@ -686,7 +686,7 @@ function renderDailyStats(data) {
         </div>
         <div class="stat-card stat-card-soft">
             <div class="stat-value">${escapeHtml(avgRating)}</div>
-            <div class="stat-label">平均评分</div>
+            <div class="stat-label">状态自评均分</div>
             <div class="stat-sub">${ratings.length} 次记录</div>
         </div>
     `;
@@ -1039,7 +1039,7 @@ function renderWeeklyStats(data) {
         </div>
         <div class="stat-card stat-card-soft">
             <div class="stat-value">${escapeHtml(avgRating)}</div>
-            <div class="stat-label">周均评分</div>
+            <div class="stat-label">周均状态自评</div>
             <div class="stat-sub">${ratingValues.length} 次评价</div>
         </div>
     `;
@@ -1136,6 +1136,7 @@ function buildWeeklyCompareRows(currentWeek, historyDays) {
     const earliestTs = earliestDate ? toLocalDate(earliestDate).getTime() : null;
     const weekdayOrder = [1, 2, 3, 4, 5, 6, 0];
     const weekdayRows = [];
+    const todayStr = fmtDate(new Date());
     let cumulativeCurrent = 0;
     let cumulativeBaseline = 0;
 
@@ -1165,6 +1166,7 @@ function buildWeeklyCompareRows(currentWeek, historyDays) {
             currentCumulative: Number(cumulativeCurrent.toFixed(1)),
             baselineCumulative: Number(cumulativeBaseline.toFixed(1)),
             deltaValue: Number((currentValue - previousValue).toFixed(1)),
+            isFuture: currentDate > todayStr,
         });
     }
     return weekdayRows;
@@ -1213,32 +1215,55 @@ function renderWeeklyProgress(rows) {
 
 function renderWeeklyWow(rows) {
     if (!weeklyWowChart) return;
-    const currentData = rows.map((row, index) => [row.currentValue, index]);
-    const previousData = rows.map((row, index) => [row.previousValue, index]);
+    const currentData = rows.map((row, index) => (row.isFuture ? ["-", index] : [row.currentValue, index]));
+    const previousData = rows.map((row, index) => ({
+        value: [row.previousValue, index],
+        itemStyle: row.isFuture ? { color: "#D8E0EC" } : undefined,
+    }));
     weeklyWowChart.setOption({
         animationDuration: 300,
         tooltip: {
             trigger: "item",
             formatter: (params) => {
                 const row = rows[params.dataIndex];
+                if (row.isFuture) {
+                    return `${row.label}<br/>上周 ${row.previousValue.toFixed(1)}h<br/>本周这天还没到`;
+                }
                 return `${row.label}<br/>上周 ${row.previousValue.toFixed(1)}h<br/>本周 ${row.currentValue.toFixed(1)}h<br/>环比 ${row.deltaValue >= 0 ? "+" : ""}${row.deltaValue.toFixed(1)}h`;
             },
         },
         grid: { left: 50, right: 28, top: 16, bottom: 20 },
         xAxis: { type: "value", name: "小时", axisLabel: { color: "#637493" } },
-        yAxis: { type: "category", data: rows.map((row) => row.label), inverse: true, axisLabel: { color: "#637493" } },
+        yAxis: {
+            type: "category",
+            data: rows.map((row) => row.label),
+            inverse: true,
+            axisLabel: {
+                color: "#637493",
+                formatter: (value, index) => (rows[index] && rows[index].isFuture ? `{future|${value} · 未到}` : value),
+                rich: { future: { color: "#B6C2D6" } },
+            },
+        },
         series: [
             {
                 type: "custom",
                 renderItem(params, api) {
                     const idx = params.dataIndex;
+                    const row = rows[idx];
                     const y = api.coord([0, idx])[1];
-                    const start = api.coord([rows[idx].previousValue, idx])[0];
-                    const end = api.coord([rows[idx].currentValue, idx])[0];
+                    if (row.isFuture) {
+                        const prevX = api.coord([row.previousValue, idx])[0];
+                        return {
+                            type: "text",
+                            style: { text: "还没到", x: prevX + 14, y, fill: "#B6C2D6", fontSize: 11 },
+                        };
+                    }
+                    const start = api.coord([row.previousValue, idx])[0];
+                    const end = api.coord([row.currentValue, idx])[0];
                     return {
                         type: "line",
                         shape: { x1: start, y1: y, x2: end, y2: y },
-                        style: { stroke: rows[idx].deltaValue >= 0 ? HEAT_TEXT_COLORS.good : HEAT_TEXT_COLORS.tooLow, lineWidth: 3 },
+                        style: { stroke: row.deltaValue >= 0 ? HEAT_TEXT_COLORS.good : HEAT_TEXT_COLORS.tooLow, lineWidth: 3 },
                     };
                 },
                 data: rows.map((_, index) => index),
@@ -1263,7 +1288,9 @@ function renderWeeklyWow(rows) {
                     color: "#637493",
                     fontSize: 10,
                     formatter: (params) => {
-                        const delta = rows[params.dataIndex].deltaValue;
+                        const row = rows[params.dataIndex];
+                        if (row.isFuture) return "";
+                        const delta = row.deltaValue;
                         return `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}h`;
                     },
                 },
@@ -1890,7 +1917,7 @@ function drawStatsGrid(ctx, weeklyData, x, y, width) {
         { value: `${totalHours}h`, label: "总在岗", sub: `日均 ${avgOnDuty}h · 出勤 ${daysWithData}天` },
         { value: `${activeHours}h`, label: "总活跃", sub: `离岗活跃 ${Number(weeklyData.active_off_duty_hours || 0)}h` },
         { value: `${effectiveHours}h`, label: `在岗专注 · ${focusRatio}%`, sub: `日均 ${avgEffective}h` },
-        { value: avgRating, label: "周均评分", sub: `${ratingValues.length} 次评价` },
+        { value: avgRating, label: "周均状态自评", sub: `${ratingValues.length} 次评价` },
     ];
     const gap = 14;
     const cardW = (width - gap * (cards.length - 1)) / cards.length;
@@ -2184,7 +2211,7 @@ async function composeWeeklyGithubBlob(weeklyData) {
         { v: `${Number(weeklyData.effective_hours || 0).toFixed(1)}`, u: "h", l: "有效专注" },
         { v: `${Number(weeklyData.total_hours || 0).toFixed(1)}`, u: "h", l: "总在岗" },
         { v: `${Number(weeklyData.focus_ratio || 0).toFixed(0)}`, u: "%", l: "专注率" },
-        { v: `${weeklyData.rating_avg != null ? Number(weeklyData.rating_avg).toFixed(1) : "-"}`, u: "/5", l: "周均评分" },
+        { v: `${weeklyData.rating_avg != null ? Number(weeklyData.rating_avg).toFixed(1) : "-"}`, u: "/5", l: "周均状态自评" },
     ];
     metrics.forEach((m, i) => {
         const y = 230 + i * 140;
@@ -2472,7 +2499,7 @@ async function composeWeeklyMagazineBlob(weeklyData) {
     const stats = [
         { v: `${Number(weeklyData.total_hours || 0).toFixed(1)}h`, l: "总在岗" },
         { v: `${weeklyData.days_with_data || 0} 天`, l: "出勤" },
-        { v: `${weeklyData.rating_avg != null ? Number(weeklyData.rating_avg).toFixed(1) : "-"}`, l: "周均评分" },
+        { v: `${weeklyData.rating_avg != null ? Number(weeklyData.rating_avg).toFixed(1) : "-"}`, l: "周均状态自评" },
     ];
     const cardW = (areaW - 2 * 28 * S) / 3;
     stats.forEach((s, i) => {
@@ -2563,7 +2590,7 @@ async function composeDailyMagazineBlob(dailyData) {
     ctx.font = serifFont(700, 26 * S);
     ctx.fillText("FOCUS HOURS TODAY", 52 * S, 248 * S);
     const focusW = ctx.measureText("FOCUS HOURS TODAY").width;
-    const subTxt = `评分 ${avg} ★ · 专注率 ${focus}%`;
+    const subTxt = `状态自评 ${avg} ★ · 专注率 ${focus}%`;
     const chipFont = 14.5 * S;
     ctx.font = exportFont(700, chipFont);
     const chipTw = ctx.measureText(subTxt).width;
@@ -2819,7 +2846,7 @@ async function composeDailyClockBlob(dailyData) {
     const stats = [
         { v: `${onDutyH}h`, l: "在岗" },
         { v: `${activeH}h`, l: "活跃" },
-        { v: `${avg} ★`, l: `评分 ×${ratings.length}` },
+        { v: `${avg} ★`, l: `自评 ×${ratings.length}` },
         { v: `${slackMin}m`, l: "摸鱼" },
     ];
     const statsY = 1240;
@@ -2922,7 +2949,7 @@ async function composeDailyReceiptBlob(dailyData) {
         ["有效专注", `${effH.toFixed(1)} h (${Number(dailyData.focus_ratio || 0).toFixed(0)}%)`],
         ["活跃时长", `${activeH} h`],
         ["摸鱼时段", `${(slackMin / 60).toFixed(2)} h`],
-        ["评分记录", `${avg} ★ × ${ratings.length}`],
+        ["状态自评", `${avg} ★ × ${ratings.length}`],
     ];
     let y = 150 * S;
     rows.forEach(([k, v]) => {
@@ -3154,7 +3181,7 @@ async function composeDailyGithubBlob(dailyData) {
     ctx.fillText("小时有效专注", 56 * S + ctx.measureText(eff.toFixed(1)).width + 14 * S, 160);
     ctx.fillStyle = "#3fb950";
     ctx.font = exportFont(600, 13 * S);
-    ctx.fillText(`专注率 ${focus}% · 评分 ${dailyData.ratings && dailyData.ratings.length ? (dailyData.ratings.reduce((s, r) => s + Number(r.value || 0), 0) / dailyData.ratings.length).toFixed(1) : "-"}`, 56 * S, 250);
+    ctx.fillText(`专注率 ${focus}% · 状态自评 ${dailyData.ratings && dailyData.ratings.length ? (dailyData.ratings.reduce((s, r) => s + Number(r.value || 0), 0) / dailyData.ratings.length).toFixed(1) : "-"}`, 56 * S, 250);
 
     // 24h 强度条
     ctx.fillStyle = "#8b949e";
@@ -3282,7 +3309,7 @@ async function composeDailyWrappedBlob(dailyData) {
     ctx.fillStyle = "rgba(255,255,255,0.4)";
     ctx.font = exportFont(500, 18 * S);
     ctx.fillText("hours of focus", W / 2, numY + 180 * S);
-    const rt = `评分 ${avg} ★ · 专注率 ${Number(dailyData.focus_ratio || 0).toFixed(0)}%`;
+    const rt = `状态自评 ${avg} ★ · 专注率 ${Number(dailyData.focus_ratio || 0).toFixed(0)}%`;
     const rw = 14 * S * String(rt).length * 0.95 + 56 * S;
     drawRoundedRect(ctx, W / 2 - rw / 2, numY + 230 * S, rw, 40 * S, 20 * S);
     ctx.fillStyle = "rgba(29,185,84,0.1)";
@@ -3503,7 +3530,7 @@ async function composeDailyFitnessBlob(dailyData) {
     const slackMin = Math.max(0, onDutyMin - effMin);
     const stats = [
         { v: `${Number(dailyData.focus_ratio || 0).toFixed(0)}%`, l: "专注率" },
-        { v: `${avg}`, l: "评分" },
+        { v: `${avg}`, l: "自评" },
         { v: `${slackMin}m`, l: "摸鱼" },
     ];
     stats.forEach((s, i) => {
@@ -3575,7 +3602,7 @@ async function composeDailyMagazineCoolBlob(dailyData) {
     ctx.fillStyle = "rgba(255,255,255,0.9)";
     ctx.font = exportFont(800, 26 * S);
     ctx.fillText("FOCUS HOURS TODAY", 52 * S, 480);
-    const subTxt = `评分 ${avg} ★ · 专注率 ${focus}%`;
+    const subTxt = `状态自评 ${avg} ★ · 专注率 ${focus}%`;
     const sw = 13 * S * String(subTxt).length * 1.0 + 56 * S;
     ctx.save();
     ctx.translate(52 * S, 560);
@@ -3711,7 +3738,7 @@ async function composeDailyHeadlineBlob(dailyData) {
     ctx.fillText(`${eff.toFixed(1)} 小时`, 52 * S, 220);
     ctx.fillStyle = "#f8b84e";
     ctx.font = exportFont(700, 20 * S);
-    ctx.fillText(`专注率 ${focus}% · 评分 ${
+    ctx.fillText(`专注率 ${focus}% · 状态自评 ${
         dailyData.ratings && dailyData.ratings.length
             ? (dailyData.ratings.reduce((s, r) => s + Number(r.value || 0), 0) / dailyData.ratings.length).toFixed(1)
             : "-"
@@ -3913,7 +3940,7 @@ async function composeDailyTicketBlob(dailyData) {
     const activeH = (Number(dailyData.active_minutes || 0) / 60).toFixed(1);
     const slackMin = Math.max(0, Number(dailyData.on_duty_minutes || 0) - Number(dailyData.effective_minutes || 0));
     const stubStats = [
-        { v: `${avg} ★`, l: "今日评分" },
+        { v: `${avg} ★`, l: "今日自评" },
         { v: `${activeH}h`, l: "活跃时长" },
         { v: `${slackMin}m`, l: "摸鱼" },
     ];
@@ -4268,7 +4295,7 @@ async function composeDailyWalkmanBlob(dailyData) {
     const statsY = tagY + 110;
     const stats = [
         { v: `${onDutyH}h`, l: "磁带长度" },
-        { v: `${avg}★`, l: "音质·评分" },
+        { v: `${avg}★`, l: "音质·自评" },
         { v: `${slackMin}m`, l: "杂音·摸鱼" },
     ];
     const cardW = (W - 160 - 40) / 3;
