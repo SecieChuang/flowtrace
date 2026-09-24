@@ -1227,7 +1227,7 @@ function renderWeeklyWow(rows) {
             formatter: (params) => {
                 const row = rows[params.dataIndex];
                 if (row.isFuture) {
-                    return `${row.label}<br/>上周 ${row.previousValue.toFixed(1)}h<br/>本周这天还没到`;
+                    return `${row.label}<br/>上周 ${row.previousValue.toFixed(1)}h`;
                 }
                 return `${row.label}<br/>上周 ${row.previousValue.toFixed(1)}h<br/>本周 ${row.currentValue.toFixed(1)}h<br/>环比 ${row.deltaValue >= 0 ? "+" : ""}${row.deltaValue.toFixed(1)}h`;
             },
@@ -1240,7 +1240,7 @@ function renderWeeklyWow(rows) {
             inverse: true,
             axisLabel: {
                 color: "#637493",
-                formatter: (value, index) => (rows[index] && rows[index].isFuture ? `{future|${value} · 未到}` : value),
+                formatter: (value, index) => (rows[index] && rows[index].isFuture ? `{future|${value}}` : value),
                 rich: { future: { color: "#B6C2D6" } },
             },
         },
@@ -1251,13 +1251,7 @@ function renderWeeklyWow(rows) {
                     const idx = params.dataIndex;
                     const row = rows[idx];
                     const y = api.coord([0, idx])[1];
-                    if (row.isFuture) {
-                        const prevX = api.coord([row.previousValue, idx])[0];
-                        return {
-                            type: "text",
-                            style: { text: "还没到", x: prevX + 14, y, fill: "#B6C2D6", fontSize: 11 },
-                        };
-                    }
+                    if (row.isFuture) return;
                     const start = api.coord([row.previousValue, idx])[0];
                     const end = api.coord([row.currentValue, idx])[0];
                     return {
